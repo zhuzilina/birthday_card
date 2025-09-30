@@ -57,11 +57,16 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
   // 用于月亮淡入淡出动画
   double _moonOpacity = 0.0;
 
+  // 星星相关属性
+  List<Widget> _stars = [];
+  double _starsOpacity = 0.0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        _generateStars(); // 生成星星
         _updateSkyTheme(); // 立即计算一次当前颜色
         // 设置一个定时器，每2分钟更新一次天空颜色和月亮位置
         _timer = Timer.periodic(const Duration(minutes: 2), (timer) {
@@ -75,6 +80,71 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
   void dispose() {
     _timer?.cancel(); // 组件销毁时取消定时器，防止内存泄漏
     super.dispose();
+  }
+
+  // 生成随机星星
+  void _generateStars() {
+    final now = DateTime.now();
+    final dateSeed = now.year * 10000 + now.month * 100 + now.day;
+    final random = math.Random(dateSeed);
+
+    final screenWidth = 375.0; // 假设屏幕宽度
+    final screenHeight = 667.0; // 假设屏幕高度
+
+    // 生成更多星星，包括底部区域
+    final starCount = 25 + random.nextInt(15); // 25-40颗星星
+    final bottomStarCount = 8 + random.nextInt(7); // 8-15颗底部专门的星星
+
+    _stars.clear();
+
+    // 生成全屏星星
+    for (int i = 0; i < starCount; i++) {
+      final x = random.nextDouble() * screenWidth;
+      final y = random.nextDouble() * screenHeight;
+      final size = 1.0 + random.nextDouble() * 2.0; // 1-3像素大小
+      final opacity = 0.3 + random.nextDouble() * 0.7; // 0.3-1.0透明度
+
+      _stars.add(_createStar(x, y, size, opacity, random));
+    }
+
+    // 专门生成底部区域的星星
+    for (int i = 0; i < bottomStarCount; i++) {
+      final x = random.nextDouble() * screenWidth;
+      final y = screenHeight * 0.7 + random.nextDouble() * screenHeight * 0.3; // 70%-100%高度区域
+      final size = 0.8 + random.nextDouble() * 1.5; // 底部星星稍小一点
+      final opacity = 0.4 + random.nextDouble() * 0.6; // 0.4-1.0透明度
+
+      _stars.add(_createStar(x, y, size, opacity, random));
+    }
+  }
+
+  // 创建单个星星的辅助方法
+  Widget _createStar(double x, double y, double size, double opacity, math.Random random) {
+    return Positioned(
+      left: x,
+      top: y,
+      child: TweenAnimationBuilder<double>(
+        duration: Duration(milliseconds: 1500 + random.nextInt(1000)),
+        tween: Tween(begin: opacity * 0.5, end: opacity),
+        builder: (context, value, child) {
+          return Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(value),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(value * 0.5),
+                  blurRadius: size * 2,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _updateSkyTheme() {
@@ -140,6 +210,23 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
 
     final isNightTime = newMoonOpacity > 0.0; // 根据透明度判断是否显示月亮
 
+    // 计算星星透明度（从傍晚开始出现，黎明消失）
+    double newStarsOpacity = 0.0;
+    // 星星出现时间：19:00-20:00
+    if (currentTime >= 19.0 && currentTime < 20.0) {
+      final fadeProgress = (currentTime - 19.0) / 1.0;
+      newStarsOpacity = fadeProgress.clamp(0.0, 0.8);
+    }
+    // 星星完全可见时间：20:00-05:00
+    else if (currentTime >= 20.0 || currentTime < 5.0) {
+      newStarsOpacity = 0.8;
+    }
+    // 星星消失时间：05:00-06:00
+    else if (currentTime >= 5.0 && currentTime < 6.0) {
+      final fadeProgress = 1.0 - (currentTime - 5.0) / 1.0;
+      newStarsOpacity = fadeProgress.clamp(0.0, 0.8);
+    }
+
     // 计算月亮位置
     Offset newMoonPosition = Offset.zero;
 
@@ -198,6 +285,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
       _isNight = isNightTime;
       _moonPosition = newMoonPosition;
       _moonOpacity = newMoonOpacity; // 更新月亮透明度
+      _starsOpacity = newStarsOpacity; // 更新星星透明度
     });
   }
 
@@ -248,6 +336,15 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
               ),
             ),
           ),
+        // 星星效果
+        AnimatedOpacity(
+          opacity: _starsOpacity,
+          duration: const Duration(seconds: 3),
+          curve: Curves.easeInOut,
+          child: Stack(
+            children: _stars,
+          ),
+        ),
       ],
     );
   }
