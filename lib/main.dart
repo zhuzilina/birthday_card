@@ -61,6 +61,10 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
   List<Widget> _stars = [];
   double _starsOpacity = 0.0;
 
+  // 流星相关属性
+  List<Widget> _meteors = [];
+  Timer? _meteorTimer;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +76,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
         _timer = Timer.periodic(const Duration(minutes: 2), (timer) {
           _updateSkyTheme();
         });
+        _startMeteorShower(); // 启动流星效果
       }
     });
   }
@@ -79,6 +84,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
   @override
   void dispose() {
     _timer?.cancel(); // 组件销毁时取消定时器，防止内存泄漏
+    _meteorTimer?.cancel(); // 取消流星定时器
     super.dispose();
   }
 
@@ -145,6 +151,102 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
         },
       ),
     );
+  }
+
+  // 启动流星效果
+  void _startMeteorShower() {
+    _meteorTimer?.cancel(); // 先取消之前的定时器
+    _scheduleNextMeteor();
+  }
+
+  // 安排下一个流星
+  void _scheduleNextMeteor() {
+    if (!mounted) return;
+
+    final random = math.Random();
+    final nextMeteorDelay = Duration(seconds: 3 + random.nextInt(12)); // 3-15秒随机间隔
+
+    _meteorTimer = Timer(nextMeteorDelay, () {
+      if (mounted && _isNight && _starsOpacity > 0.5) {
+        _createMeteor();
+        _scheduleNextMeteor(); // 安排下一个流星
+      } else {
+        // 如果不是夜晚，稍后再试
+        _meteorTimer = Timer(const Duration(seconds: 30), _scheduleNextMeteor);
+      }
+    });
+  }
+
+  // 创建流星
+  void _createMeteor() {
+    final random = math.Random();
+    final screenWidth = 375.0;
+    final screenHeight = 667.0;
+
+    // 流星起始位置（从右上角区域）
+    final startX = screenWidth * 0.6 + random.nextDouble() * screenWidth * 0.4;
+    final startY = random.nextDouble() * screenHeight * 0.4;
+
+    // 流星结束位置（向左下角移动）
+    final endX = startX - 100 - random.nextDouble() * 100;
+    final endY = startY + 50 + random.nextDouble() * 150;
+
+    // 流星长度和速度
+    final meteorLength = 30 + random.nextDouble() * 50;
+    final duration = 800 + random.nextInt(1200); // 0.8-2.0秒
+
+    // 计算旋转角度
+    final rotation = math.atan2(endY - startY, endX - startX);
+
+    // 创建流星
+    final meteorKey = GlobalKey();
+    final meteor = TweenAnimationBuilder<double>(
+      key: meteorKey,
+      duration: Duration(milliseconds: duration),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, progress, child) {
+        final currentX = startX + (endX - startX) * progress;
+        final currentY = startY + (endY - startY) * progress;
+        final currentOpacity = 1.0 - progress; // 逐渐消失
+
+        return Positioned(
+          left: currentX,
+          top: currentY,
+          child: Transform.rotate(
+            angle: rotation,
+            child: Container(
+              width: meteorLength,
+              height: 2,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.transparent,
+                    Colors.white.withOpacity(currentOpacity * 0.8),
+                    Colors.white.withOpacity(currentOpacity),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    setState(() {
+      _meteors.add(meteor);
+    });
+
+    // 流星动画结束后移除
+    Timer(Duration(milliseconds: duration + 100), () {
+      if (mounted) {
+        setState(() {
+          _meteors.removeWhere((element) => element.key == meteorKey);
+        });
+      }
+    });
   }
 
   void _updateSkyTheme() {
@@ -344,6 +446,10 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
           child: Stack(
             children: _stars,
           ),
+        ),
+        // 流星效果
+        Stack(
+          children: _meteors,
         ),
       ],
     );
