@@ -141,11 +141,11 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(value),
+              color: Colors.white.withValues(alpha: value),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.white.withOpacity(value * 0.5),
+                  color: Colors.white.withValues(alpha: value * 0.5),
                   blurRadius: size * 2,
                   spreadRadius: 1,
                 ),
@@ -227,8 +227,8 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
                   end: Alignment.centerRight,
                   colors: [
                     Colors.transparent,
-                    Colors.white.withOpacity(currentOpacity * 0.8),
-                    Colors.white.withOpacity(currentOpacity),
+                    Colors.white.withValues(alpha: currentOpacity * 0.8),
+                    Colors.white.withValues(alpha: currentOpacity),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(1),
@@ -430,10 +430,10 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      Color(0xFFFFFFFF).withOpacity(0.7),
-                      Color(0xFFFFFACD).withOpacity(0.5),
-                      Color(0xFFFFFFE0).withOpacity(0.3),
-                      Color(0xFFFFFFE0).withOpacity(0.1),
+                      Color(0xFFFFFFFF).withValues(alpha: 0.7),
+                      Color(0xFFFFFACD).withValues(alpha: 0.5),
+                      Color(0xFFFFFFE0).withValues(alpha: 0.3),
+                      Color(0xFFFFFFE0).withValues(alpha: 0.1),
                       Colors.transparent,
                     ],
                     stops: [0.0, 0.2, 0.4, 0.7, 1.0],
