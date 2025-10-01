@@ -824,7 +824,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: GestureDetector(
         onTap: _showButtonTemporarily,
-        child: DynamicSkyBackground( // 将 DynamicSkyBackground 直接作为 Scaffold 的 body
+        child: DynamicSkyBackground(
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -841,8 +841,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                    // 这个 Stack 内部的 DynamicSkyBackground 已经被移动到 Scaffold 的 body
-                    // 这里只需要显示卡片内容
                     Container(
                       width: 300,
                       height: 300,
