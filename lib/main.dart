@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math; // 导入数学库用于计算月亮轨迹
 import 'fireworks_page.dart'; // 假设这个文件存在且内容正确
+import 'app_intro_page.dart';
 
 // 定义一个数据结构，用于存储每个关键时间点的天空颜色
 class SkyTheme {
@@ -469,6 +470,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
+        fontFamily: 'FZSJ-TSYTJW',
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
@@ -598,33 +600,62 @@ class _MyHomePageState extends State<MyHomePage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Column(
+                child: Stack(
                   children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: SingleChildScrollView(
-                          child: Text(
-                            snapshot.data ?? '',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.black87,
-                              height: 1.5,
+                    Column(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Center(
+                              child: SingleChildScrollView(
+                                child: Text(
+                                  snapshot.data ?? '',
+                                  textAlign: TextAlign.start,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    color: Colors.black87,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          '关闭',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.blue,
+                        Container(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Center(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(
+                                '关闭',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
                           ),
+                        ),
+                      ],
+                    ),
+                    Positioned(
+                      left: 38,
+                      bottom: 33,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AppIntroPage(),
+                            ),
+                          );
+                        },
+                        child: const Icon(
+                          Icons.info_outline,
+                          color: Colors.blue,
+                          size: 18,
                         ),
                       ),
                     ),
@@ -708,6 +739,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: Text(
                               'to:WYQ',
                               style: TextStyle(
+                                fontFamily: 'FZSJ-TSYTJW',
                                 fontSize: 22,
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
@@ -715,12 +747,13 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                           ),
                           Positioned(
-                            left: 38,
-                            bottom: 50,
+                            left: 30,
+                            bottom: 46,
                             child: Text(
                               '春风十里\n贺卿良辰',
                               style: TextStyle(
-                                fontSize: 24,
+                                fontFamily: 'FZSJ-TSYTJW',
+                                fontSize: 32,
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -729,12 +762,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            bottom: 6,
+                            bottom: 7,
                             child: Center(
                               child: Text(
                                 '一岁一礼    一寸欢喜',
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontFamily: 'FZSJ-TSYTJW',
+                                  fontSize: 22,
                                   color: Colors.black,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -749,6 +783,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               child: Text(
                                 'from:zzl',
                                 style: TextStyle(
+                                  fontFamily: 'FZSJ-TSYTJW',
                                   fontSize: 12,
                                   color: Colors.black,
                                 ),

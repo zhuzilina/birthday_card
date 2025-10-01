@@ -94,3 +94,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  fonts:
+    - family: MFQingShu_Noncommercial-Regular
+      fonts:
+        - asset: assets/fonts/MFQingShu_Noncommercial-Regular.otf
+    - family: FZSJ-TSYTJW
+      fonts:
+        - asset: assets/fonts/FZSJ-TSYTJW.TTF
