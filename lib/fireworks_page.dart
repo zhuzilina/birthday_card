@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 
 class FireworksPage extends StatefulWidget {
   const FireworksPage({super.key});
@@ -12,10 +13,13 @@ class FireworksPage extends StatefulWidget {
 
 class _FireworksPageState extends State<FireworksPage> {
   late final WebViewController _controller;
+  double _backButtonOpacity = 1.0;
+  Timer? _hideBackButtonTimer;
 
   @override
   void initState() {
     super.initState();
+    _scheduleBackButtonHide();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
@@ -94,35 +98,71 @@ class _FireworksPageState extends State<FireworksPage> {
     debugPrint('Audio request: $message');
   }
 
-  
+  @override
+  void dispose() {
+    _hideBackButtonTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleBackButtonHide() {
+    _hideBackButtonTimer?.cancel();
+    _hideBackButtonTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _backButtonOpacity = 0.0;
+        });
+      }
+    });
+  }
+
+  void _showBackButtonTemporarily() {
+    setState(() {
+      _backButtonOpacity = 1.0;
+    });
+    _scheduleBackButtonHide();
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Container(
-        color: Colors.black,
-        child: Stack(
-          children: [
-            WebViewWidget(controller: _controller),
-            // Back button overlay
-            Positioned(
-              top: 40,
-              left: 16,
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          // Touch detection layer
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _showBackButtonTemporarily,
+              behavior: HitTestBehavior.translucent,
+              child: Container(
+                color: Colors.transparent,
+              ),
+            ),
+          ),
+          // Back button overlay
+          Positioned(
+            top: 50,
+            left: 20,
+            child: AnimatedOpacity(
+              opacity: _backButtonOpacity,
+              duration: const Duration(milliseconds: 500),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () {
+                    _showBackButtonTemporarily();
                     Navigator.pop(context);
                   },
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
