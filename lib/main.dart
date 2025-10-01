@@ -579,7 +579,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '一份特别的生日贺卡',
+              '一份很小的生日贺卡',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
