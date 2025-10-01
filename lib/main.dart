@@ -487,6 +487,39 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  double _buttonOpacity = 1.0;
+  Timer? _hideButtonTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleButtonHide();
+  }
+
+  @override
+  void dispose() {
+    _hideButtonTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleButtonHide() {
+    _hideButtonTimer?.cancel();
+    _hideButtonTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _buttonOpacity = 0.0;
+        });
+      }
+    });
+  }
+
+  void _showButtonTemporarily() {
+    setState(() {
+      _buttonOpacity = 1.0;
+    });
+    _scheduleButtonHide();
+  }
+
   bool _isDaytime() {
     final now = DateTime.now();
     final currentTime = now.hour + now.minute / 60.0;
@@ -608,39 +641,52 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: _isDaytime() ? _showNoteCard : _openFireworks,
-        backgroundColor: Colors.white.withValues(alpha: 0.1),
-        tooltip: _isDaytime() ? '查看贺卡' : '看烟花',
-        mini: true,
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Image.asset(
-            _isDaytime() ? 'assets/images/little_note.png' : 'assets/images/fireworks.png',
-            width: 48,
-            height: 48,
-            fit: BoxFit.cover,
+      floatingActionButton: AnimatedOpacity(
+        opacity: _buttonOpacity,
+        duration: const Duration(milliseconds: 500),
+        child: FloatingActionButton(
+          onPressed: () {
+            _showButtonTemporarily();
+            if (_isDaytime()) {
+              _showNoteCard();
+            } else {
+              _openFireworks();
+            }
+          },
+          backgroundColor: Colors.white.withValues(alpha: 0.1),
+          tooltip: _isDaytime() ? '查看贺卡' : '看烟花',
+          mini: true,
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Image.asset(
+              _isDaytime() ? 'assets/images/little_note.png' : 'assets/images/fireworks.png',
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
       ),
-      body: DynamicSkyBackground( // 将 DynamicSkyBackground 直接作为 Scaffold 的 body
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Container(
-                constraints: BoxConstraints(
-                  minWidth: 300,
-                  minHeight: 400,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+      body: GestureDetector(
+        onTap: _showButtonTemporarily,
+        child: DynamicSkyBackground( // 将 DynamicSkyBackground 直接作为 Scaffold 的 body
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Container(
+                  constraints: BoxConstraints(
+                    minWidth: 300,
+                    minHeight: 400,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                     // 这个 Stack 内部的 DynamicSkyBackground 已经被移动到 Scaffold 的 body
                     // 这里只需要显示卡片内容
                     Container(
@@ -717,6 +763,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
