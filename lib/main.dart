@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math; // 导入数学库用于计算月亮轨迹
 import 'fireworks_page.dart'; // 假设这个文件存在且内容正确
 import 'app_intro_page.dart';
+import 'welcome_page.dart';
 
 // 定义一个数据结构，用于存储每个关键时间点的天空颜色
 class SkyTheme {
@@ -468,14 +470,119 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: '小礼物',
       theme: ThemeData(
         fontFamily: 'FZSJ-TSYTJW',
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: '生日贺卡'),
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => const SplashScreen(),
+        '/': (context) => const MainApp(),
+        '/welcome': (context) => const WelcomePage(),
+      },
     );
+  }
+}
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstLaunch();
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
+
+    // 等待一秒钟，让用户看到启动画面
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    if (mounted) {
+      if (isFirstLaunch) {
+        // 首次启动，标记为已启动并跳转到欢迎页面
+        await prefs.setBool('isFirstLaunch', false);
+        Navigator.pushReplacementNamed(context, '/welcome');
+      } else {
+        // 不是首次启动，直接进入主页面
+        Navigator.pushReplacementNamed(context, '/');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F4F8),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: const Color(0xFF4A90E2),
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/lunch_icon.jpg',
+                  width: 50,
+                  height: 50,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              '小礼物',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2C3E50),
+                fontFamily: 'FZSJ-TSYTJW',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '一份特别的生日贺卡',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontFamily: 'FZSJ-TSYTJW',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MainApp extends StatelessWidget {
+  const MainApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MyHomePage(title: '生日贺卡');
   }
 }
 

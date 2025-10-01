@@ -41,16 +41,20 @@ class AppIntroPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.cake,
-                      color: Colors.white,
-                      size: 40,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.asset(
+                        'assets/images/lunch_icon.jpg',
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -104,7 +108,7 @@ class AppIntroPage extends StatelessWidget {
                   _buildInfoRow('开发者', '遇见晴天'),
                   _buildInfoRow('开发框架', 'Flutter'),
                   _buildInfoRow('更新时间', '2025年10月9日'),
-                  _buildInfoRow('说明', '本app是赠予一位朋友的生日礼物'),
+                  _buildInfoRow('说明', '本app是赠予WYQ女士的生日礼物'),
                 ],
               ),
             ),
