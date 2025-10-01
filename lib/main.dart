@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:math' as math; // 导入数学库用于计算月亮轨迹
 import 'fireworks_page.dart'; // 假设这个文件存在且内容正确
 
@@ -486,6 +487,13 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  bool _isDaytime() {
+    final now = DateTime.now();
+    final currentTime = now.hour + now.minute / 60.0;
+    // 白天时间：6:00 - 18:00
+    return currentTime >= 6.0 && currentTime < 18.0;
+  }
+
   void _openFireworks() {
     Navigator.push(
       context,
@@ -493,9 +501,129 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Future<String> _loadLetterText() async {
+    final String response = await rootBundle.loadString('assets/txt/letter.txt');
+    return response;
+  }
+
+  void _showNoteCard() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return FutureBuilder<String>(
+          future: _loadLetterText(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Dialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Container(
+                  width: 300,
+                  height: 400,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Dialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Container(
+                  width: 300,
+                  height: 400,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Text('加载失败'),
+                  ),
+                ),
+              );
+            }
+
+            return Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Container(
+                width: 300,
+                height: 400,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: SingleChildScrollView(
+                          child: Text(
+                            snapshot.data ?? '',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black87,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          '关闭',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: _isDaytime() ? _showNoteCard : _openFireworks,
+        backgroundColor: Colors.white.withValues(alpha: 0.1),
+        tooltip: _isDaytime() ? '查看贺卡' : '看烟花',
+        mini: true,
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Image.asset(
+            _isDaytime() ? 'assets/images/little_note.png' : 'assets/images/fireworks.png',
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
       body: DynamicSkyBackground( // 将 DynamicSkyBackground 直接作为 Scaffold 的 body
         child: Center(
           child: Column(
@@ -584,34 +712,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 40),
-                    ElevatedButton(
-                      onPressed: _openFireworks,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 5,
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '看烟花 🎆',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.celebration, size: 20),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
                 ),
               ),
             ],
