@@ -15,13 +15,13 @@
  */
 
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart'; // flutter UI组件库
+import 'package:flutter/services.dart'; // 一些系统服务需要用到
+import 'package:shared_preferences/shared_preferences.dart'; // 用于app状态持久化存储
 import 'dart:math' as math; // 导入数学库用于计算月亮轨迹
-import 'fireworks_page.dart'; // 假设这个文件存在且内容正确
-import 'app_intro_page.dart';
-import 'welcome_page.dart';
+import 'fireworks_page.dart'; // 导入烟花定制页面
+import 'app_intro_page.dart'; // 导入app关于页面
+import 'welcome_page.dart'; // 导入app欢迎页面
 
 // 定义一个数据结构，用于存储每个关键时间点的天空颜色
 class SkyTheme {
@@ -476,7 +476,12 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
   }
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); 
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp, // 垂直向上
+    DeviceOrientation.portraitDown, // 垂直向下（可选，如果允许180度旋转）
+  ]);
   runApp(const MyApp());
 }
 
