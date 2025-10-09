@@ -80,6 +80,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
   // 星星相关属性
   List<Widget> _stars = [];
   double _starsOpacity = 0.0;
+  Size? _screenSize;
 
   // 流星相关属性
   List<Widget> _meteors = [];
@@ -90,6 +91,8 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        // 获取屏幕尺寸
+        _screenSize = MediaQuery.of(context).size;
         _generateStars(); // 生成星星
         _updateSkyTheme(); // 立即计算一次当前颜色
         // 设置一个定时器，每2分钟更新一次天空颜色和月亮位置
@@ -110,16 +113,23 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
 
   // 生成随机星星
   void _generateStars() {
+    if (_screenSize == null) return;
+
     final now = DateTime.now();
     final dateSeed = now.year * 10000 + now.month * 100 + now.day;
     final random = math.Random(dateSeed);
 
-    final screenWidth = 375.0; // 假设屏幕宽度
-    final screenHeight = 667.0; // 假设屏幕高度
+    final screenWidth = _screenSize!.width;
+    final screenHeight = _screenSize!.height;
 
-    // 生成更多星星，包括底部区域
-    final starCount = 25 + random.nextInt(15); // 25-40颗星星
-    final bottomStarCount = 8 + random.nextInt(7); // 8-15颗底部专门的星星
+    // 计算屏幕面积比例，用于调整星星数量
+    final screenArea = screenWidth * screenHeight;
+    final baseArea = 375.0 * 667.0; // 基准屏幕面积
+    final scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
+
+    // 生成更多星星，包括底部区域，根据屏幕尺寸调整数量
+    final starCount = ((25 + random.nextInt(15)) * scaleFactor).round();
+    final bottomStarCount = ((8 + random.nextInt(7)) * scaleFactor).round();
 
     _stars.clear();
 
@@ -127,7 +137,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
     for (int i = 0; i < starCount; i++) {
       final x = random.nextDouble() * screenWidth;
       final y = random.nextDouble() * screenHeight;
-      final size = 1.0 + random.nextDouble() * 2.0; // 1-3像素大小
+      final size = (1.0 + random.nextDouble() * 2.0) * scaleFactor.clamp(0.8, 1.5); // 根据屏幕调整大小
       final opacity = 0.3 + random.nextDouble() * 0.7; // 0.3-1.0透明度
 
       _stars.add(_createStar(x, y, size, opacity, random));
@@ -137,7 +147,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
     for (int i = 0; i < bottomStarCount; i++) {
       final x = random.nextDouble() * screenWidth;
       final y = screenHeight * 0.7 + random.nextDouble() * screenHeight * 0.3; // 70%-100%高度区域
-      final size = 0.8 + random.nextDouble() * 1.5; // 底部星星稍小一点
+      final size = (0.8 + random.nextDouble() * 1.5) * scaleFactor.clamp(0.8, 1.2); // 底部星星稍小一点
       final opacity = 0.4 + random.nextDouble() * 0.6; // 0.4-1.0透明度
 
       _stars.add(_createStar(x, y, size, opacity, random));
@@ -199,20 +209,27 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
 
   // 创建流星
   void _createMeteor() {
+    if (_screenSize == null) return;
+
     final random = math.Random();
-    final screenWidth = 375.0;
-    final screenHeight = 667.0;
+    final screenWidth = _screenSize!.width;
+    final screenHeight = _screenSize!.height;
+
+    // 计算屏幕缩放因子
+    final baseArea = 375.0 * 667.0;
+    final screenArea = screenWidth * screenHeight;
+    final scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
 
     // 流星起始位置（从右上角区域）
     final startX = screenWidth * 0.6 + random.nextDouble() * screenWidth * 0.4;
     final startY = random.nextDouble() * screenHeight * 0.4;
 
     // 流星结束位置（向左下角移动）
-    final endX = startX - 100 - random.nextDouble() * 100;
-    final endY = startY + 50 + random.nextDouble() * 150;
+    final endX = startX - (100 + random.nextDouble() * 100) * scaleFactor.clamp(0.8, 1.5);
+    final endY = startY + (50 + random.nextDouble() * 150) * scaleFactor.clamp(0.8, 1.5);
 
     // 流星长度和速度
-    final meteorLength = 30 + random.nextDouble() * 50;
+    final meteorLength = (30 + random.nextDouble() * 50) * scaleFactor.clamp(0.8, 1.5);
     final duration = 800 + random.nextInt(1200); // 0.8-2.0秒
 
     // 计算旋转角度
@@ -365,26 +382,31 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
       moonCycleProgress = moonCycleProgress.clamp(0.0, 1.0); // 确保在0-1之间
 
       // 定义月亮路径：基于日期计算随机左边起始位置
-      // 使用固定的卡片尺寸(300x300)来计算月亮位置
-      final double cardWidth = 300.0;
-      final double cardHeight = 300.0;
+      // 使用屏幕尺寸来计算月亮位置
+      final double cardWidth = _screenSize?.width ?? 300.0;
+      final double cardHeight = _screenSize?.height ?? 300.0;
 
       // 基于当前日期生成伪随机起始位置
       final now = DateTime.now();
       final dateSeed = now.year * 10000 + now.month * 100 + now.day;
       final random = math.Random(dateSeed);
 
+      // 计算缩放因子
+      final baseArea = 375.0 * 667.0;
+      final screenArea = cardWidth * cardHeight;
+      final scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
+
       // 月亮从左边随机位置出现
-      final startMoonX = -100.0; // 固定从左边外部开始
+      final startMoonX = -100.0 * scaleFactor.clamp(0.8, 1.5); // 固定从左边外部开始
       final startMoonY = random.nextDouble() * cardHeight * 0.8; // Y轴随机位置（0-80%高度）
 
       // 基于起始位置计算对应的终点，形成对角线轨迹
-      final endMoonX = cardWidth + 50.0; // 固定从右边离开
-      final endMoonY = startMoonY + (random.nextDouble() * 100 + 50); // 基于起始Y计算结束Y
+      final endMoonX = cardWidth + 50.0 * scaleFactor.clamp(0.8, 1.5); // 固定从右边离开
+      final endMoonY = startMoonY + (random.nextDouble() * 100 + 50) * scaleFactor.clamp(0.8, 1.5); // 基于起始Y计算结束Y
 
       // 控制点，创建弧形轨迹
       final controlMoonX = cardWidth * 0.5; // 中心点X
-      final controlMoonY = math.min(startMoonY, endMoonY) - 50; // 控制点在起始点和终点上方
+      final controlMoonY = math.min(startMoonY, endMoonY) - 50 * scaleFactor.clamp(0.8, 1.5); // 控制点在起始点和终点上方
 
       // 使用二次贝塞尔曲线公式进行插值
       final moonX = (1 - moonCycleProgress) * (1 - moonCycleProgress) * startMoonX +
@@ -433,15 +455,15 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
         // 月光效果，使用 Positioned 和 Opacity 实现淡入淡出
         if (_isNight)
           Positioned(
-            left: _moonPosition.dx - 100, // 根据月亮实际尺寸进行偏移，使其中心在_moonPosition
-            top: _moonPosition.dy - 100,
+            left: _moonPosition.dx - (_screenSize?.width != null ? (100 * ((_screenSize!.width * _screenSize!.height) / (375.0 * 667.0)).clamp(0.8, 1.5)) : 100), // 根据屏幕尺寸调整月亮大小
+            top: _moonPosition.dy - (_screenSize?.height != null ? (100 * ((_screenSize!.width * _screenSize!.height) / (375.0 * 667.0)).clamp(0.8, 1.5)) : 100),
             child: AnimatedOpacity(
               opacity: _moonOpacity, // 控制月光透明度
               duration: const Duration(seconds: 2), // 淡入淡出动画持续时间
               curve: Curves.easeInOut,
               child: Container(
-                width: 200,
-                height: 200,
+                width: _screenSize?.width != null ? (200 * ((_screenSize!.width * _screenSize!.height) / (375.0 * 667.0)).clamp(0.8, 1.5)) : 200,
+                height: _screenSize?.height != null ? (200 * ((_screenSize!.width * _screenSize!.height) / (375.0 * 667.0)).clamp(0.8, 1.5)) : 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
@@ -838,6 +860,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   constraints: BoxConstraints(
                     minWidth: 300,
                     minHeight: 400,
+                    maxWidth: 600, // 限制最大宽度，避免在大屏幕上过大
+                    maxHeight: 800, // 限制最大高度
                   ),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
@@ -846,40 +870,48 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                    Container(
-                      width: 300,
-                      height: 300,
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(15),
-                        image: DecorationImage(
-                          image: AssetImage('assets/images/card.png'),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        // 根据可用空间动态调整卡片大小
+                        double cardSize = [constraints.maxWidth * 0.9, constraints.maxHeight * 0.7].reduce(math.min);
+                        cardSize = math.min(cardSize, math.min(MediaQuery.of(context).size.width * 0.6, 600));
+                        cardSize = math.min(cardSize, math.min(MediaQuery.of(context).size.height * 0.6, 600));
+                        cardSize = cardSize.clamp(300.0, 600.0); // 最小300px，最大600px
+
+                        return Container(
+                          width: cardSize,
+                          height: cardSize,
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(15),
+                            image: DecorationImage(
+                              image: AssetImage('assets/images/card.png'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                       child: Stack(
                         children: [
                           Positioned(
-                            left: 22,
-                            bottom: 135,
+                            left: cardSize * 0.07, // 22/300 的比例
+                            bottom: cardSize * 0.45, // 135/300 的比例
                             child: Text(
                               'to:WYQ',
                               style: TextStyle(
                                 fontFamily: 'FZSJ-TSYTJW',
-                                fontSize: 22,
+                                fontSize: cardSize * 0.073, // 22/300 的比例
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                           Positioned(
-                            left: 30,
-                            bottom: 46,
+                            left: cardSize * 0.1, // 30/300 的比例
+                            bottom: cardSize * 0.15, // 46/300 的比例
                             child: Text(
                               '春风十里\n贺卿良辰',
                               style: TextStyle(
                                 fontFamily: 'FZSJ-TSYTJW',
-                                fontSize: 32,
+                                fontSize: cardSize * 0.107, // 32/300 的比例
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -888,13 +920,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           Positioned(
                             left: 0,
                             right: 0,
-                            bottom: 7,
+                            bottom: cardSize * 0.02, // 7/300 的比例
                             child: Center(
                               child: Text(
                                 '一岁一礼    一寸欢喜',
                                 style: TextStyle(
                                   fontFamily: 'FZSJ-TSYTJW',
-                                  fontSize: 22,
+                                  fontSize: cardSize * 0.073, // 22/300 的比例
                                   color: Colors.black,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -902,15 +934,15 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                           ),
                           Positioned(
-                            right: 7,
-                            bottom: 20,
+                            right: cardSize * 0.02, // 7/300 的比例
+                            bottom: cardSize * 0.07, // 20/300 的比例
                             child: Transform.rotate(
                               angle: 45 * -math.pi / 180, // 使用 math.pi
                               child: Text(
                                 'from:zzl',
                                 style: TextStyle(
                                   fontFamily: 'FZSJ-TSYTJW',
-                                  fontSize: 12,
+                                  fontSize: cardSize * 0.04, // 12/300 的比例
                                   color: Colors.black,
                                 ),
                               ),
@@ -918,7 +950,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ],
                       ),
-                    ),
+                    );
+                    },
+                  ),
                     ],
                 ),
               ),
