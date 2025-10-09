@@ -15,10 +15,16 @@
  */
 
 import 'dart:convert';
+import 'dart:io';
+import 'dart:async';
+import 'dart:convert' as convert;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
-import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:shelf_static/shelf_static.dart';
+import 'package:path/path.dart' as path;
 
 // 条件导入WebView实现
 import 'package:webview_flutter/webview_flutter.dart';
@@ -38,6 +44,9 @@ class _FireworksPageState extends State<FireworksPage> {
   Timer? _hideBackButtonTimer;
   final bool _isWindows = Platform.isWindows;
   bool _webViewSupported = true;
+  HttpServer? _localServer;
+  String? _localServerUrl;
+  bool _isOpeningBrowser = false;
 
   @override
   void initState() {
@@ -106,9 +115,85 @@ class _FireworksPageState extends State<FireworksPage> {
       });
     } catch (e) {
       debugPrint('WebView initialization failed: $e');
+
+      // Windows平台WebView失败时，尝试启动本地服务器
+      if (_isWindows) {
+        await _startLocalServer();
+      }
+
       setState(() {
         _webViewSupported = false;
       });
+    }
+  }
+
+  // 启动本地HTTP服务器
+  Future<void> _startLocalServer() async {
+    try {
+      const port = 8080;
+      _localServer = await shelf_io.serve(
+        _createHandler(),
+        'localhost',
+        port,
+      );
+
+      _localServerUrl = 'http://localhost:$port';
+      debugPrint('Local server started at $_localServerUrl');
+
+      // 等待一小段时间确保服务器完全启动
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 尝试打开浏览器
+      await _openInBrowser();
+    } catch (e) {
+      debugPrint('Failed to start local server: $e');
+    }
+  }
+
+  // 创建HTTP请求处理器
+  Handler _createHandler() {
+    // 创建静态文件处理器
+    final staticHandler = createStaticHandler('assets/web',
+      defaultDocument: 'index.html',
+      listDirectories: false,
+    );
+
+    // 创建自定义处理器来处理CORS和音频文件
+    return (Request request) async {
+      // 添加CORS头
+      final response = await staticHandler(request);
+
+      return response.change(
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          ...response.headers,
+        },
+      );
+    };
+  }
+
+  // 在浏览器中打开本地服务器URL
+  Future<void> _openInBrowser() async {
+    if (_localServerUrl == null || _isOpeningBrowser) return;
+
+    setState(() {
+      _isOpeningBrowser = true;
+    });
+
+    try {
+      final uri = Uri.parse(_localServerUrl!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication, // 使用外部浏览器
+        );
+      } else {
+        debugPrint('Could not launch $_localServerUrl');
+      }
+    } catch (e) {
+      debugPrint('Error launching browser: $e');
     }
   }
 
@@ -164,6 +249,11 @@ class _FireworksPageState extends State<FireworksPage> {
     if (_isWindows) {
       HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     }
+
+    // 关闭本地服务器
+    _localServer?.close();
+    _localServer = null;
+
     super.dispose();
   }
 
@@ -240,7 +330,7 @@ class _FireworksPageState extends State<FireworksPage> {
                     ),
                     const SizedBox(height: 20),
                     const Text(
-                      '烟花效果\n在Windows桌面版暂不可用\n请在移动设备上体验',
+                      '烟花效果在桌面版中\n将在浏览器中打开',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
@@ -248,6 +338,74 @@ class _FireworksPageState extends State<FireworksPage> {
                         decoration: TextDecoration.none,
                       ),
                     ),
+                    if (_localServerUrl != null) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              '本地服务器已启动',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _localServerUrl!,
+                              style: const TextStyle(
+                                color: Colors.cyan,
+                                fontSize: 12,
+                                decoration: TextDecoration.none,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (_localServerUrl != null) ...[
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: _isOpeningBrowser ? null : _openInBrowser,
+                        icon: _isOpeningBrowser
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.open_in_browser),
+                        label: Text(_isOpeningBrowser ? '正在打开浏览器...' : '在浏览器中打开'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.withValues(alpha: 0.8),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
+                      ),
+                    ] else if (_isWindows) ...[
+                      const SizedBox(height: 30),
+                      Text(
+                        '正在启动本地服务器...',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ],
                     if (_isWindows) ...[
                       const SizedBox(height: 30),
                       Text(

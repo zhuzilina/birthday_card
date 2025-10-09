@@ -940,9 +940,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 Container(
                   constraints: BoxConstraints(
                     minWidth: 300,
-                    minHeight: 400,
+                    minHeight: 600,
                     maxWidth: 600, // 限制最大宽度，避免在大屏幕上过大
-                    maxHeight: 800, // 限制最大高度
+                    maxHeight: 1000, // 限制最大高度
                   ),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
