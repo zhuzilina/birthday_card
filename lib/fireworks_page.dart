@@ -43,6 +43,7 @@ class _FireworksPageState extends State<FireworksPage> {
   double _backButtonOpacity = 1.0;
   Timer? _hideBackButtonTimer;
   final bool _isWindows = !kIsWeb && Platform.isWindows;
+  final bool _isLinux = !kIsWeb && Platform.isLinux;
   bool _webViewSupported = true;
   HttpServer? _localServer;
   String? _localServerUrl;
@@ -52,12 +53,20 @@ class _FireworksPageState extends State<FireworksPage> {
   void initState() {
     super.initState();
     _scheduleBackButtonHide();
-    if (_isWindows) {
+    if (_isWindows || _isLinux) {
       _setupKeyboardListener();
     }
 
-    // 尝试初始化WebView
-    _initializeWebView();
+    // Linux和Windows平台直接启动本地服务器
+    if (_isLinux || _isWindows) {
+      _startLocalServer();
+      setState(() {
+        _webViewSupported = false;
+      });
+    } else {
+      // 其他平台尝试初始化WebView
+      _initializeWebView();
+    }
   }
 
   void _initializeWebView() async {
@@ -116,8 +125,8 @@ class _FireworksPageState extends State<FireworksPage> {
     } catch (e) {
       debugPrint('WebView initialization failed: $e');
 
-      // Windows平台WebView失败时，尝试启动本地服务器
-      if (_isWindows) {
+      // Windows或Linux平台WebView失败时，尝试启动本地服务器
+      if (_isWindows || _isLinux) {
         await _startLocalServer();
       }
 
@@ -152,8 +161,11 @@ class _FireworksPageState extends State<FireworksPage> {
 
   // 创建HTTP请求处理器
   Handler _createHandler() {
+    // 根据平台选择web资源目录
+    final webAssetsDir = (_isWindows || _isLinux) ? 'assets/web-desktop' : 'assets/web';
+
     // 创建静态文件处理器
-    final staticHandler = createStaticHandler('assets/web',
+    final staticHandler = createStaticHandler(webAssetsDir,
       defaultDocument: 'index.html',
       listDirectories: false,
     );
@@ -216,7 +228,8 @@ class _FireworksPageState extends State<FireworksPage> {
     });
 
     try {
-      final uri = Uri.parse(_localServerUrl!);
+      // 添加桌面模式和全屏参数到 URL
+      final uri = Uri.parse('${_localServerUrl!}?desktop=true&fullscreen=true');
       if (await canLaunchUrl(uri)) {
         await launchUrl(
           uri,
@@ -279,7 +292,7 @@ class _FireworksPageState extends State<FireworksPage> {
   @override
   void dispose() {
     _hideBackButtonTimer?.cancel();
-    if (_isWindows) {
+    if (_isWindows || _isLinux) {
       HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     }
 
@@ -428,7 +441,7 @@ class _FireworksPageState extends State<FireworksPage> {
                           ),
                         ),
                       ),
-                    ] else if (_isWindows) ...[
+                    ] else if (_isWindows || _isLinux) ...[
                       const SizedBox(height: 30),
                       Text(
                         '正在启动本地服务器...',
@@ -438,8 +451,17 @@ class _FireworksPageState extends State<FireworksPage> {
                           decoration: TextDecoration.none,
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '浏览器将自动打开',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 12,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
                     ],
-                    if (_isWindows) ...[
+                    if (_isWindows || _isLinux) ...[
                       const SizedBox(height: 30),
                       Text(
                         '按 ESC 键返回',
@@ -467,34 +489,34 @@ class _FireworksPageState extends State<FireworksPage> {
             ),
           // Back button overlay
           Positioned(
-            top: _isWindows ? 20 : 50,
-            left: _isWindows ? 20 : 20,
+            top: (_isWindows || _isLinux) ? 20 : 50,
+            left: (_isWindows || _isLinux) ? 20 : 20,
             child: AnimatedOpacity(
               opacity: _backButtonOpacity,
               duration: const Duration(milliseconds: 500),
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(_isWindows ? 8 : 20),
-                  border: _isWindows ? Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1) : null,
+                  borderRadius: BorderRadius.circular((_isWindows || _isLinux) ? 8 : 20),
+                  border: (_isWindows || _isLinux) ? Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1) : null,
                 ),
                 child: IconButton(
                   icon: Icon(
-                    _isWindows ? Icons.close : Icons.arrow_back,
+                    (_isWindows || _isLinux) ? Icons.close : Icons.arrow_back,
                     color: Colors.white,
-                    size: _isWindows ? 20 : 24,
+                    size: (_isWindows || _isLinux) ? 20 : 24,
                   ),
                   onPressed: () {
                     _showBackButtonTemporarily();
                     Navigator.pop(context);
                   },
-                  tooltip: _isWindows ? '关闭 (ESC)' : '返回',
+                  tooltip: (_isWindows || _isLinux) ? '关闭 (ESC)' : '返回',
                 ),
               ),
             ),
           ),
-          // Windows keyboard hint
-          if (_isWindows)
+          // Windows/Linux keyboard hint
+          if (_isWindows || _isLinux)
             Positioned(
               bottom: 20,
               right: 20,

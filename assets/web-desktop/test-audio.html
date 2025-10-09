@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audio Test - 看烟花</title>
+</head>
+<body>
+    <h1>Audio Test Page</h1>
+    <p>Testing desktop audio functionality...</p>
+
+    <button onclick="testAudio()">Test Audio Loading</button>
+    <div id="output"></div>
+
+    <script>
+        // 模拟桌面版本的音频配置
+        window.skipBase64Audio = true;
+        window.useDirectAudioPaths = true;
+        window.BROWSER_MODE = true;
+
+        // 创建音频数据存储，使用直接路径
+        window.audioData = {
+            'lift1.mp3': './audio/lift1.mp3',
+            'lift2.mp3': './audio/lift2.mp3',
+            'lift3.mp3': './audio/lift3.mp3',
+            'burst1.mp3': './audio/burst1.mp3',
+            'burst2.mp3': './audio/burst2.mp3',
+            'burst-sm-1.mp3': './audio/burst-sm-1.mp3',
+            'burst-sm-2.mp3': './audio/burst-sm-2.mp3',
+            'crackle1.mp3': './audio/crackle1.mp3',
+            'crackle-sm-1.mp3': './audio/crackle-sm-1.mp3'
+        };
+
+        function testAudio() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h3>Testing Audio Loading...</h3>';
+
+            // 创建音频上下文
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+
+            const promises = [];
+
+            // 测试加载一个音频文件
+            const audioPath = './audio/lift1.mp3';
+
+            fetch(audioPath)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    output.innerHTML += `<p>✓ HTTP response OK for: ${audioPath}</p>`;
+                    return response.arrayBuffer();
+                })
+                .then(data => {
+                    return ctx.decodeAudioData(data);
+                })
+                .then(audioBuffer => {
+                    output.innerHTML += `<p>✓ Audio decoded successfully: ${audioPath}</p>`;
+                    output.innerHTML += `<p>✓ Sample rate: ${audioBuffer.sampleRate} Hz</p>`;
+                    output.innerHTML += `<p>✓ Duration: ${audioBuffer.duration.toFixed(2)} seconds</p>`;
+                    output.innerHTML += `<p>✓ Channels: ${audioBuffer.numberOfChannels}</p>`;
+
+                    // 尝试播放音频
+                    const source = ctx.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(ctx.destination);
+                    source.start();
+
+                    output.innerHTML += `<p>✓ Audio playing! You should hear sound now.</p>`;
+                })
+                .catch(error => {
+                    output.innerHTML += `<p>✗ Error loading ${audioPath}: ${error.message}</p>`;
+                });
+        }
+    </script>
+</body>
+</html>

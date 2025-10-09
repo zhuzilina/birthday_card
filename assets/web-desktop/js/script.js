@@ -2484,17 +2484,11 @@ const soundManager = {
 	preload() {
 		console.log('soundManager.preload() called');
 
-		// Check if we should skip base64 audio loading but allow direct path loading in browser environment
-		if (window.skipBase64Audio && !window.useDirectAudioPaths) {
-			console.log('Skipping base64 audio only (will try fetch loading)');
-			this._browserMode = false; // Allow audio playback
-			return this._loadFetchAudio();
-		}
-
-		if (window.useDirectAudioPaths) {
-			console.log('Direct audio paths enabled, attempting fetch loading');
-			this._browserMode = false; // Allow audio playback
-			return this._loadFetchAudio();
+		// Check if we should skip audio loading entirely in browser environment
+		if (window.skipBase64Audio || window.useDirectAudioPaths || (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+			console.log('Browser environment detected, skipping audio preload');
+			this._browserMode = true;
+			return Promise.resolve();
 		}
 
 		// First wait for Base64 audio data, then try to load it
@@ -2562,9 +2556,9 @@ const soundManager = {
 
 	_waitForBase64Audio() {
 		return new Promise((resolve) => {
-			// 如果设置了跳过base64标志，但允许直接路径，返回false让系统使用fetch
-			if (window.skipBase64Audio) {
-				console.log('Skipping base64 audio loading (will use fetch for direct paths)');
+			// 如果设置了跳过base64标志，直接返回false
+			if (window.skipBase64Audio || window.useDirectAudioPaths) {
+				console.log('Skipping base64 audio loading (HTTP environment)');
 				resolve(false);
 				return;
 			}

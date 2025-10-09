@@ -21,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart'; // 用于app状态�
 import 'dart:math' as math; // 导入数学库用于计算月亮轨迹
 import 'dart:io' as io; // 用于平台检测
 import 'package:flutter/foundation.dart' show kIsWeb; // 用于Web平台检测
+import 'package:desktop_window/desktop_window.dart'; // 用于桌面窗口设置
 import 'fireworks_page.dart'; // 导入烟花定制页面
 import 'app_intro_page.dart'; // 导入app关于页面
 import 'welcome_page.dart'; // 导入app欢迎页面
@@ -582,6 +583,19 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 设置桌面版本默认窗口大小
+  if (!kIsWeb && (io.Platform.isWindows || io.Platform.isLinux || io.Platform.isMacOS)) {
+    try {
+      // 设置桌面应用窗口最小尺寸
+      await DesktopWindow.setMinWindowSize(const Size(800, 1000));
+      await DesktopWindow.setMaxWindowSize(const Size(1200, 1600));
+      // 设置窗口初始大小
+      await DesktopWindow.setWindowSize(const Size(900, 1100));
+    } catch (e) {
+      print('设置窗口大小失败: $e');
+    }
+  }
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp, // 垂直向上
     DeviceOrientation.portraitDown, // 垂直向下（可选，如果允许180度旋转）
@@ -935,9 +949,10 @@ class _MyHomePageState extends State<MyHomePage> {
         onTap: _showButtonTemporarily,
         child: DynamicSkyBackground(
           child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
                 Container(
                   constraints: BoxConstraints(
                     minWidth: 300,
@@ -1048,8 +1063,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
             ],
+              ),
+            ),
           ),
-        ),
         ),
       ),
     );
