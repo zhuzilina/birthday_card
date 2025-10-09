@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Loading Test</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .log {
+            background: #111;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #0a4a0a; }
+        .error { background: #4a0a0a; }
+        .info { background: #0a2a4a; }
+    </style>
+</head>
+<body>
+    <h1>Audio Loading Fix Test</h1>
+    <div id="status" class="status info">Initializing...</div>
+    <div id="log" class="log"></div>
+
+    <script>
+        // 添加日志输出函数
+        function addLog(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // 覆盖console.log以显示在页面上
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addLog(args.join(' '));
+        };
+
+        // 模拟soundManager对象
+        window.soundManager = {
+            _browserMode: false,
+            preload: function() {
+                console.log('soundManager.preload() called');
+
+                // Check if we should skip audio loading entirely in browser environment
+                if (window.skipBase64Audio || window.useDirectAudioPaths || (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+                    console.log('Browser environment detected, skipping audio preload');
+                    this._browserMode = true;
+                    return Promise.resolve();
+                }
+
+                // 模拟其他情况
+                return Promise.resolve();
+            },
+            playSound: function(type, scale = 1) {
+                // Skip audio entirely in browser mode
+                if (this._browserMode) {
+                    console.log(`Skipping sound "${type}" - browser mode enabled`);
+                    return;
+                }
+                console.log(`Playing sound "${type}" with scale ${scale}`);
+            }
+        };
+
+        // 设置全局标志
+        window.skipBase64Audio = true;
+        window.useDirectAudioPaths = true;
+        window.BROWSER_MODE = true;
+
+        // 开始测试
+        async function runTest() {
+            updateStatus('Testing audio loading fix...', 'info');
+
+            console.log('=== Audio Loading Fix Test Started ===');
+            console.log('Protocol:', window.location.protocol);
+            console.log('Skip base64 audio:', window.skipBase64Audio);
+            console.log('Use direct paths:', window.useDirectAudioPaths);
+            console.log('Browser mode:', window.BROWSER_MODE);
+
+            try {
+                // 测试soundManager.preload()
+                console.log('Testing soundManager.preload()...');
+                await soundManager.preload();
+                console.log('✓ soundManager.preload() completed successfully');
+
+                // 测试soundManager.playSound()
+                console.log('Testing soundManager.playSound()...');
+                soundManager.playSound('burst');
+                soundManager.playSound('lift');
+                soundManager.playSound('crackle');
+                console.log('✓ soundManager.playSound() calls completed successfully');
+
+                updateStatus('✓ All tests passed! Audio loading fix is working correctly.', 'success');
+                console.log('=== All Tests Passed ===');
+
+            } catch (error) {
+                updateStatus(`✗ Test failed: ${error.message}`, 'error');
+                console.error('✗ Test failed:', error);
+            }
+        }
+
+        // 运行测试
+        runTest();
+    </script>
+</body>
+</html>

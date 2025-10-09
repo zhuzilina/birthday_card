@@ -29,6 +29,7 @@ import 'package:shelf_static/shelf_static.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class FireworksPage extends StatefulWidget {
   const FireworksPage({super.key});
@@ -41,7 +42,7 @@ class _FireworksPageState extends State<FireworksPage> {
   WebViewController? _controller;
   double _backButtonOpacity = 1.0;
   Timer? _hideBackButtonTimer;
-  final bool _isWindows = Platform.isWindows;
+  final bool _isWindows = !kIsWeb && Platform.isWindows;
   bool _webViewSupported = true;
   HttpServer? _localServer;
   String? _localServerUrl;

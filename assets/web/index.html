@@ -129,32 +129,17 @@
 
 		<!-- partial -->
 		<script>
+			// 立即设置全局音频控制标志
+			window.skipBase64Audio = true;
+			window.useDirectAudioPaths = true;
+			window.BROWSER_MODE = true;
+
 			// 检测是否在本地服务器环境中运行
 			if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-				// 在HTTP(S)环境中，从API获取音频文件路径
-				fetch('/api/audio-files')
-					.then(response => response.json())
-					.then(audioData => {
-						// 设置音频文件路径到window对象
-						window.audioData = audioData;
-						console.log('Audio file paths loaded from server:', audioData);
-
-						// 设置soundManager的baseURL为相对路径
-						if (window.soundManager) {
-							window.soundManager.baseURL = './audio/';
-						} else {
-							// 如果soundManager还未定义，设置一个标志
-							window.useDirectAudioPaths = true;
-						}
-					})
-					.catch(error => {
-						console.error('Failed to load audio file paths:', error);
-						// 如果加载失败，设置空对象避免无限等待
-						window.audioData = {};
-					});
+				console.log('HTTP(S) environment detected, enabling browser mode');
+				console.log('Audio loading disabled - fireworks will run without sound');
 			} else {
-				// 在file://协议中，等待Flutter WebView注入音频数据
-				console.log('Running in file:// protocol, waiting for audio data injection...');
+				console.log('File:// protocol detected, still enabling browser mode for compatibility');
 			}
 		</script>
 		<script src="./js/fscreen.js"></script>

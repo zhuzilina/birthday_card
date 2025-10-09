@@ -20,6 +20,7 @@ import 'package:flutter/services.dart'; // 一些系统服务需要用到
 import 'package:shared_preferences/shared_preferences.dart'; // 用于app状态持久化存储
 import 'dart:math' as math; // 导入数学库用于计算月亮轨迹
 import 'dart:io' as io; // 用于平台检测
+import 'package:flutter/foundation.dart' show kIsWeb; // 用于Web平台检测
 import 'fireworks_page.dart'; // 导入烟花定制页面
 import 'app_intro_page.dart'; // 导入app关于页面
 import 'welcome_page.dart'; // 导入app欢迎页面
@@ -122,8 +123,8 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
         });
         _startMeteorShower(); // 启动流星效果
 
-        // Windows平台监听窗口变化
-        if (io.Platform.isWindows) {
+        // Windows平台或Web平台监听窗口变化
+        if (kIsWeb || io.Platform.isWindows) {
           _setupWindowListener();
         }
       }
@@ -142,7 +143,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
     _screenSize = MediaQuery.of(context).size;
 
     // 检测是否全屏状态（简单判断：屏幕宽度大于1200或高度大于800时认为是类全屏状态）
-    if (io.Platform.isWindows) {
+    if (kIsWeb || io.Platform.isWindows) {
       _isFullscreen = _screenSize!.width > 1200 || _screenSize!.height > 800;
     } else {
       _isFullscreen = false;

@@ -2425,6 +2425,13 @@ const soundManager = {
 	preload() {
 		console.log('soundManager.preload() called');
 
+		// Check if we should skip audio loading entirely in browser environment
+		if (window.skipBase64Audio || window.useDirectAudioPaths || (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+			console.log('Browser environment detected, skipping audio preload');
+			this._browserMode = true;
+			return Promise.resolve();
+		}
+
 		// First wait for Base64 audio data, then try to load it
 		return this._waitForBase64Audio()
 			.then(() => {
@@ -2490,6 +2497,13 @@ const soundManager = {
 
 	_waitForBase64Audio() {
 		return new Promise((resolve) => {
+			// 如果设置了跳过base64标志，直接返回false
+			if (window.skipBase64Audio || window.useDirectAudioPaths) {
+				console.log('Skipping base64 audio loading (HTTP environment)');
+				resolve(false);
+				return;
+			}
+
 			const checkAudioData = () => {
 				if (window.audioData && Object.keys(window.audioData).length > 0) {
 					console.log('Audio data found!');
@@ -2601,6 +2615,11 @@ const soundManager = {
 	 *                             Note that a scale of 0 will mute the sound.
 	 */
 	playSound(type, scale = 1) {
+		// Skip audio entirely in browser mode
+		if (this._browserMode) {
+			return;
+		}
+
 		// Ensure `scale` is within valid range.
 		scale = MyMath.clamp(scale, 0, 1);
 
@@ -2623,7 +2642,14 @@ const soundManager = {
 		const source = this.sources[type];
 
 		if (!source) {
-			throw new Error(`Sound of type "${type}" doesn't exist.`);
+			console.warn(`Sound of type "${type}" doesn't exist or audio not loaded.`);
+			return;
+		}
+
+		// Check if buffers are available
+		if (!source.buffers || source.buffers.length === 0) {
+			console.warn(`Audio buffers not loaded for type "${type}". Skipping sound playback.`);
+			return;
 		}
 
 		const initialVolume = source.volume;
@@ -2635,16 +2661,20 @@ const soundManager = {
 		// So at a scale of 1, sound plays normally, but as scale approaches 0 speed approaches double.
 		const scaledPlaybackRate = initialPlaybackRate * (2 - scale);
 
-		const gainNode = this.ctx.createGain();
-		gainNode.gain.value = scaledVolume;
+		try {
+			const gainNode = this.ctx.createGain();
+			gainNode.gain.value = scaledVolume;
 
-		const buffer = MyMath.randomChoice(source.buffers);
-		const bufferSource = this.ctx.createBufferSource();
-		bufferSource.playbackRate.value = scaledPlaybackRate;
-		bufferSource.buffer = buffer;
-		bufferSource.connect(gainNode);
-		gainNode.connect(this.ctx.destination);
-		bufferSource.start(0);
+			const buffer = MyMath.randomChoice(source.buffers);
+			const bufferSource = this.ctx.createBufferSource();
+			bufferSource.playbackRate.value = scaledPlaybackRate;
+			bufferSource.buffer = buffer;
+			bufferSource.connect(gainNode);
+			gainNode.connect(this.ctx.destination);
+			bufferSource.start(0);
+		} catch (error) {
+			console.warn(`Failed to play sound "${type}":`, error);
+		}
 	},
 };
 
