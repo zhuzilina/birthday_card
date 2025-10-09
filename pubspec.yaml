@@ -122,6 +122,8 @@ flutter_launcher_icons:
   web:
     generate: false
   windows:
-    generate: false
+    generate: true
   macos:
-    generate: false
+    generate: true
+  linux:
+    generate: true

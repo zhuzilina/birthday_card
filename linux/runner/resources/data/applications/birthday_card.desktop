@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Birthday Card
+Comment=A beautiful birthday card application
+Exec=birthday_card
+Icon=birthday_card
+Categories=Utility;Graphics;
+Terminal=false

@@ -24,3 +24,13 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+
+# Add Linux icon resources
+set(ICON_DIR "${CMAKE_SOURCE_DIR}/resources/data/icons/hicolor")
+install(DIRECTORY "${ICON_DIR}"
+    DESTINATION "share/icons/hicolor"
+    FILES_MATCHING PATTERN "*.png")
+
+# Install desktop file
+install(FILES "${CMAKE_SOURCE_DIR}/resources/data/applications/birthday_card.desktop"
+    DESTINATION "share/applications")
