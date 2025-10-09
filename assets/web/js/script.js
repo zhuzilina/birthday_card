@@ -2492,11 +2492,34 @@ const soundManager = {
 		return new Promise((resolve) => {
 			const checkAudioData = () => {
 				if (window.audioData && Object.keys(window.audioData).length > 0) {
-					console.log('Base64 audio data found!');
-					resolve(true);
+					console.log('Audio data found!');
+
+					// 检查是否是本地服务器环境（音频数据为路径而非base64）
+					const isPathData = Object.values(window.audioData).some(value =>
+						typeof value === 'string' && value.startsWith('/')
+					);
+
+					if (isPathData) {
+						console.log('Direct audio paths detected, skipping base64 processing');
+						// 对于路径数据，我们直接拒绝，让系统降级到fetch模式
+						resolve(false);
+					} else {
+						console.log('Base64 audio data found!');
+						resolve(true);
+					}
 				} else {
-					console.log('Waiting for Base64 audio data...');
-					setTimeout(checkAudioData, 100);
+					// 检查是否超时（10秒）
+					if (!this._waitStartTime) {
+						this._waitStartTime = Date.now();
+					}
+
+					if (Date.now() - this._waitStartTime > 10000) {
+						console.log('Wait timeout, assuming direct audio paths');
+						resolve(false);
+					} else {
+						console.log('Waiting for audio data...');
+						setTimeout(checkAudioData, 100);
+					}
 				}
 			};
 			checkAudioData();

@@ -24,7 +24,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
-import 'package:path/path.dart' as path;
 
 // 条件导入WebView实现
 import 'package:webview_flutter/webview_flutter.dart';
@@ -160,7 +159,12 @@ class _FireworksPageState extends State<FireworksPage> {
 
     // 创建自定义处理器来处理CORS和音频文件
     return (Request request) async {
-      // 添加CORS头
+      // 处理音频文件信息API端点
+      if (request.url.path == '/api/audio-files') {
+        return _createAudioFilesResponse();
+      }
+
+      // 添加CORS头到所有响应
       final response = await staticHandler(request);
 
       return response.change(
@@ -172,6 +176,34 @@ class _FireworksPageState extends State<FireworksPage> {
         },
       );
     };
+  }
+
+  // 创建音频文件列表响应
+  Response _createAudioFilesResponse() {
+    final audioFiles = [
+      'burst1.mp3',
+      'burst2.mp3',
+      'burst-sm-1.mp3',
+      'burst-sm-2.mp3',
+      'crackle1.mp3',
+      'crackle-sm-1.mp3',
+      'lift1.mp3',
+      'lift2.mp3',
+      'lift3.mp3',
+    ];
+
+    final audioData = <String, String>{};
+    for (String fileName in audioFiles) {
+      audioData[fileName] = '/audio/$fileName';
+    }
+
+    return Response.ok(
+      convert.jsonEncode(audioData),
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+    );
   }
 
   // 在浏览器中打开本地服务器URL
