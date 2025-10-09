@@ -19,6 +19,7 @@ import 'package:flutter/material.dart'; // flutter UI组件库
 import 'package:flutter/services.dart'; // 一些系统服务需要用到
 import 'package:shared_preferences/shared_preferences.dart'; // 用于app状态持久化存储
 import 'dart:math' as math; // 导入数学库用于计算月亮轨迹
+import 'dart:io' as io; // 用于平台检测
 import 'fireworks_page.dart'; // 导入烟花定制页面
 import 'app_intro_page.dart'; // 导入app关于页面
 import 'welcome_page.dart'; // 导入app欢迎页面
@@ -68,6 +69,26 @@ class DynamicSkyBackground extends StatefulWidget {
   _DynamicSkyBackgroundState createState() => _DynamicSkyBackgroundState();
 }
 
+// 封装一个获取全屏状态的InheritedWidget
+class FullscreenState extends InheritedWidget {
+  final bool isFullscreen;
+
+  const FullscreenState({
+    super.key,
+    required this.isFullscreen,
+    required super.child,
+  });
+
+  static FullscreenState? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<FullscreenState>();
+  }
+
+  @override
+  bool updateShouldNotify(FullscreenState oldWidget) {
+    return isFullscreen != oldWidget.isFullscreen;
+  }
+}
+
 class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
   Timer? _timer;
   SkyTheme _currentTheme = skyThemes[12.0]!; // 初始值设为正午
@@ -81,6 +102,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
   List<Widget> _stars = [];
   double _starsOpacity = 0.0;
   Size? _screenSize;
+  bool _isFullscreen = false; // 全屏状态检测
 
   // 流星相关属性
   List<Widget> _meteors = [];
@@ -91,8 +113,7 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        // 获取屏幕尺寸
-        _screenSize = MediaQuery.of(context).size;
+        _updateScreenState(); // 更新屏幕状态
         _generateStars(); // 生成星星
         _updateSkyTheme(); // 立即计算一次当前颜色
         // 设置一个定时器，每2分钟更新一次天空颜色和月亮位置
@@ -100,6 +121,11 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
           _updateSkyTheme();
         });
         _startMeteorShower(); // 启动流星效果
+
+        // Windows平台监听窗口变化
+        if (io.Platform.isWindows) {
+          _setupWindowListener();
+        }
       }
     });
   }
@@ -109,6 +135,42 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
     _timer?.cancel(); // 组件销毁时取消定时器，防止内存泄漏
     _meteorTimer?.cancel(); // 取消流星定时器
     super.dispose();
+  }
+
+  // 更新屏幕状态
+  void _updateScreenState() {
+    _screenSize = MediaQuery.of(context).size;
+
+    // 检测是否全屏状态（简单判断：屏幕宽度大于1200或高度大于800时认为是类全屏状态）
+    if (io.Platform.isWindows) {
+      _isFullscreen = _screenSize!.width > 1200 || _screenSize!.height > 800;
+    } else {
+      _isFullscreen = false;
+    }
+  }
+
+  // 设置窗口变化监听
+  void _setupWindowListener() {
+    // 监听窗口变化（这里使用定时器定期检查）
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      final newSize = MediaQuery.of(context).size;
+      if (newSize != _screenSize) {
+        final wasFullscreen = _isFullscreen;
+        _updateScreenState();
+
+        // 如果全屏状态发生变化，重新生成元素
+        if (wasFullscreen != _isFullscreen) {
+          setState(() {
+            _generateStars();
+          });
+        }
+      }
+    });
   }
 
   // 生成随机星星
@@ -125,7 +187,12 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
     // 计算屏幕面积比例，用于调整星星数量
     final screenArea = screenWidth * screenHeight;
     final baseArea = 375.0 * 667.0; // 基准屏幕面积
-    final scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
+    var scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
+
+    // 全屏状态下增强星星效果
+    if (_isFullscreen) {
+      scaleFactor *= 1.5; // 全屏状态下增加50%的星星密度
+    }
 
     // 生成更多星星，包括底部区域，根据屏幕尺寸调整数量
     final starCount = ((25 + random.nextInt(15)) * scaleFactor).round();
@@ -218,7 +285,12 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
     // 计算屏幕缩放因子
     final baseArea = 375.0 * 667.0;
     final screenArea = screenWidth * screenHeight;
-    final scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
+    var scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
+
+    // 全屏状态下增强流星效果
+    if (_isFullscreen) {
+      scaleFactor *= 1.3; // 全屏状态下增加流星轨迹长度
+    }
 
     // 流星起始位置（从右上角区域）
     final startX = screenWidth * 0.6 + random.nextDouble() * screenWidth * 0.4;
@@ -394,7 +466,12 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
       // 计算缩放因子
       final baseArea = 375.0 * 667.0;
       final screenArea = cardWidth * cardHeight;
-      final scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
+      var scaleFactor = (screenArea / baseArea).clamp(0.5, 3.0);
+
+      // 全屏状态下调整月亮轨迹
+      if (_isFullscreen) {
+        scaleFactor *= 1.2; // 全屏状态下增加月亮轨迹范围
+      }
 
       // 月亮从左边随机位置出现
       final startMoonX = -100.0 * scaleFactor.clamp(0.8, 1.5); // 固定从左边外部开始
@@ -435,8 +512,10 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
+    return FullscreenState(
+      isFullscreen: _isFullscreen,
+      child: Stack(
+        children: [
         // 使用 AnimatedContainer，当颜色变化时会自动产生平滑的动画过渡
         AnimatedContainer(
           duration: const Duration(seconds: 2), // 渐变动画的持续时间
@@ -494,12 +573,14 @@ class _DynamicSkyBackgroundState extends State<DynamicSkyBackground> {
           children: _meteors,
         ),
       ],
+      ),
     );
   }
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); 
+  WidgetsFlutterBinding.ensureInitialized();
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp, // 垂直向上
     DeviceOrientation.portraitDown, // 垂直向下（可选，如果允许180度旋转）
@@ -874,9 +955,18 @@ class _MyHomePageState extends State<MyHomePage> {
                       builder: (context, constraints) {
                         // 根据可用空间动态调整卡片大小
                         double cardSize = [constraints.maxWidth * 0.9, constraints.maxHeight * 0.7].reduce(math.min);
-                        cardSize = math.min(cardSize, math.min(MediaQuery.of(context).size.width * 0.6, 600));
-                        cardSize = math.min(cardSize, math.min(MediaQuery.of(context).size.height * 0.6, 600));
-                        cardSize = cardSize.clamp(300.0, 600.0); // 最小300px，最大600px
+
+                        // 全屏状态下允许更大的卡片尺寸
+                        final isFullscreen = FullscreenState.of(context)?.isFullscreen ?? false;
+                        if (isFullscreen) {
+                          cardSize = math.min(cardSize, math.min(MediaQuery.of(context).size.width * 0.5, 800)); // 全屏时最大50%宽度，800px
+                          cardSize = math.min(cardSize, math.min(MediaQuery.of(context).size.height * 0.7, 800)); // 全屏时最大70%高度，800px
+                          cardSize = cardSize.clamp(400.0, 800.0); // 全屏时最小400px，最大800px
+                        } else {
+                          cardSize = math.min(cardSize, math.min(MediaQuery.of(context).size.width * 0.6, 600)); // 普通屏幕最大60%宽度，600px
+                          cardSize = math.min(cardSize, math.min(MediaQuery.of(context).size.height * 0.6, 600)); // 普通屏幕最大60%高度，600px
+                          cardSize = cardSize.clamp(300.0, 600.0); // 普通屏幕最小300px，最大600px
+                        }
 
                         return Container(
                           width: cardSize,

@@ -16,10 +16,14 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
+
+// 条件导入WebView实现
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 class FireworksPage extends StatefulWidget {
   const FireworksPage({super.key});
@@ -29,10 +33,11 @@ class FireworksPage extends StatefulWidget {
 }
 
 class _FireworksPageState extends State<FireworksPage> {
-  late final WebViewController _controller;
+  WebViewController? _controller;
   double _backButtonOpacity = 1.0;
   Timer? _hideBackButtonTimer;
   final bool _isWindows = Platform.isWindows;
+  bool _webViewSupported = true;
 
   @override
   void initState() {
@@ -41,40 +46,70 @@ class _FireworksPageState extends State<FireworksPage> {
     if (_isWindows) {
       _setupKeyboardListener();
     }
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..enableZoom(false)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onProgress: (int progress) {
-            // Update loading bar.
+
+    // 尝试初始化WebView
+    _initializeWebView();
+  }
+
+  void _initializeWebView() async {
+    try {
+      // 根据平台设置WebView实现
+      late final PlatformWebViewControllerCreationParams params;
+      if (Platform.isAndroid) {
+        params = AndroidWebViewControllerCreationParams();
+      } else if (Platform.isIOS) {
+        params = WebKitWebViewControllerCreationParams();
+      } else {
+        // Windows和其他平台使用默认实现
+        params = const PlatformWebViewControllerCreationParams();
+      }
+
+      _controller = WebViewController.fromPlatformCreationParams(params)
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0x00000000))
+        ..enableZoom(false)
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onProgress: (int progress) {
+              // Update loading bar.
+            },
+            onPageStarted: (String url) {},
+            onPageFinished: (String url) {
+              // Load audio assets when page is loaded
+              _loadAudioAssets();
+            },
+            onWebResourceError: (WebResourceError error) {
+              debugPrint('WebView error: $error');
+            },
+            onNavigationRequest: (NavigationRequest request) {
+              // Allow local file requests
+              if (request.url.startsWith('file://')) {
+                return NavigationDecision.navigate;
+              }
+              return NavigationDecision.prevent;
+            },
+          ),
+        )
+        ..addJavaScriptChannel(
+          'AudioLoader',
+          onMessageReceived: (JavaScriptMessage message) {
+            _handleAudioRequest(message.message);
           },
-          onPageStarted: (String url) {},
-          onPageFinished: (String url) {
-            // Load audio assets when page is loaded
-            _loadAudioAssets();
-          },
-          onWebResourceError: (WebResourceError error) {},
-          onNavigationRequest: (NavigationRequest request) {
-            // Allow local file requests
-            if (request.url.startsWith('file://')) {
-              return NavigationDecision.navigate;
-            }
-            return NavigationDecision.prevent;
-          },
-        ),
-      )
-      ..addJavaScriptChannel(
-        'AudioLoader',
-        onMessageReceived: (JavaScriptMessage message) {
-          _handleAudioRequest(message.message);
-        },
-      )
-      ..setUserAgent(_isWindows
-          ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          : 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1')
-      ..loadFlutterAsset('assets/web/index.html');
+        )
+        ..setUserAgent(_isWindows
+            ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            : 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1')
+        ..loadFlutterAsset('assets/web/index.html');
+
+      setState(() {
+        _webViewSupported = true;
+      });
+    } catch (e) {
+      debugPrint('WebView initialization failed: $e');
+      setState(() {
+        _webViewSupported = false;
+      });
+    }
   }
 
   Future<void> _loadAudioAssets() async {
@@ -100,11 +135,13 @@ class _FireworksPageState extends State<FireworksPage> {
           final fileName = audioPath.split('/').last;
 
           // Send audio data to WebView
-          await _controller.runJavaScript('''
-            window.audioData = window.audioData || {};
-            window.audioData['$fileName'] = 'data:audio/mp3;base64,$base64Audio';
-            console.log('Audio data loaded for: $fileName');
-          ''');
+          if (_controller != null) {
+            await _controller!.runJavaScript('''
+              window.audioData = window.audioData || {};
+              window.audioData['$fileName'] = 'data:audio/mp3;base64,$base64Audio';
+              console.log('Audio data loaded for: $fileName');
+            ''');
+          }
         } catch (e) {
           debugPrint('Failed to load audio file $audioPath: $e');
         }
@@ -173,17 +210,70 @@ class _FireworksPageState extends State<FireworksPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          WebViewWidget(controller: _controller),
-          // Mouse/Touch detection layer
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: _showBackButtonTemporarily,
-              behavior: HitTestBehavior.translucent,
-              child: Container(
-                color: Colors.transparent,
+          // WebView内容或替代方案
+          if (_webViewSupported && _controller != null)
+            WebViewWidget(controller: _controller!)
+          else
+            // Windows WebView不支持时的替代方案
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.9),
+                    Colors.blue.withValues(alpha: 0.1),
+                    Colors.black.withValues(alpha: 0.9),
+                  ],
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.celebration,
+                      size: 100,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      '烟花效果\n在Windows桌面版暂不可用\n请在移动设备上体验',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                    if (_isWindows) ...[
+                      const SizedBox(height: 30),
+                      Text(
+                        '按 ESC 键返回',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
-          ),
+          // Mouse/Touch detection layer
+          if (_webViewSupported)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _showBackButtonTemporarily,
+                behavior: HitTestBehavior.translucent,
+                child: Container(
+                  color: Colors.transparent,
+                ),
+              ),
+            ),
           // Back button overlay
           Positioned(
             top: _isWindows ? 20 : 50,
