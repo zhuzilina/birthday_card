@@ -15,6 +15,7 @@
  */
 
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart'; // flutter UI组件库
 import 'package:flutter/services.dart'; // 一些系统服务需要用到
 import 'package:shared_preferences/shared_preferences.dart'; // 用于app状态持久化存储
@@ -640,19 +641,33 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkFirstLaunch() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
+    bool isFirstLaunch = true; // 默认为首次启动
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 尝试获取首次启动标志
+      final savedFlag = prefs.getBool('isFirstLaunch');
+      if (savedFlag != null) {
+        isFirstLaunch = savedFlag;
+      }
+
+      // 如果成功获取了标志，设置非首次启动
+      if (isFirstLaunch) {
+        await prefs.setBool('isFirstLaunch', false);
+      }
+    } catch (e) {
+      developer.log('SharedPreferences访问出错，使用默认值: $e');
+      // 出错时保持isFirstLaunch为true，确保显示欢迎页面
+    }
 
     // 等待一秒钟，让用户看到启动画面
     await Future.delayed(const Duration(milliseconds: 1000));
 
     if (mounted) {
       if (isFirstLaunch) {
-        // 首次启动，标记为已启动并跳转到欢迎页面
-        await prefs.setBool('isFirstLaunch', false);
         Navigator.pushReplacementNamed(context, '/welcome');
       } else {
-        // 不是首次启动，直接进入主页面
         Navigator.pushReplacementNamed(context, '/');
       }
     }
