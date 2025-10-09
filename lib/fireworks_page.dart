@@ -354,54 +354,69 @@ class _FireworksPageState extends State<FireworksPage> {
             Container(
               width: double.infinity,
               height: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.9),
-                    Colors.blue.withValues(alpha: 0.1),
-                    Colors.black.withValues(alpha: 0.9),
-                  ],
-                ),
+              decoration: const BoxDecoration(
+                color: Color(0xFF0a1033),
               ),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.celebration,
-                      size: 100,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      Icons.auto_awesome,
+                      size: 80,
+                      color: Colors.purple.withValues(alpha: 0.9),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     const Text(
-                      '烟花效果在桌面版中\n将在浏览器中打开',
+                      '✨ 烟花秀 ✨',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.none,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '桌面版烟花效果将在浏览器中呈现',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 16,
                         decoration: TextDecoration.none,
                       ),
                     ),
                     if (_localServerUrl != null) ...[
                       const SizedBox(height: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         child: Column(
                           children: [
-                            const Text(
-                              '本地服务器已启动',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                decoration: TextDecoration.none,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  size: 16,
+                                  color: Colors.green.withValues(alpha: 0.8),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  '本地服务器已启动',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -418,27 +433,74 @@ class _FireworksPageState extends State<FireworksPage> {
                       ),
                     ],
                     if (_localServerUrl != null) ...[
+                      const SizedBox(height: 30),
+                      // 点击查看烟花按钮
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.purple.withValues(alpha: 0.3),
+                              blurRadius: 15,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: _isOpeningBrowser ? null : _openInBrowser,
+                          icon: _isOpeningBrowser
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.auto_awesome, size: 22),
+                          label: Text(
+                            _isOpeningBrowser ? '正在打开...' : '点击查看烟花',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple.withValues(alpha: 0.8),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 20),
-                      ElevatedButton.icon(
-                        onPressed: _isOpeningBrowser ? null : _openInBrowser,
+                      // 重新打开按钮
+                      TextButton.icon(
+                        onPressed: _isOpeningBrowser ? null : () {
+                          _openInBrowser();
+                        },
                         icon: _isOpeningBrowser
                             ? const SizedBox(
-                                width: 16,
-                                height: 16,
+                                width: 14,
+                                height: 14,
                                 child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                                  strokeWidth: 1.5,
+                                  color: Colors.cyan,
                                 ),
                               )
-                            : const Icon(Icons.open_in_browser),
-                        label: Text(_isOpeningBrowser ? '正在打开浏览器...' : '在浏览器中打开'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.withValues(alpha: 0.8),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
+                            : const Icon(Icons.refresh, size: 16),
+                        label: Text(
+                          _isOpeningBrowser ? '正在打开...' : '重新打开',
+                          style: TextStyle(
+                            color: Colors.cyan.withValues(alpha: 0.8),
+                            fontSize: 14,
                           ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
                     ] else if (_isWindows || _isLinux) ...[
