@@ -18,6 +18,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'dart:convert' as convert;
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -140,8 +141,12 @@ class _FireworksPageState extends State<FireworksPage> {
   Future<void> _startLocalServer() async {
     try {
       const port = 8080;
+
+      // 先尝试创建处理器来验证资源路径
+      final handler = _createHandler();
+
       _localServer = await shelf_io.serve(
-        _createHandler(),
+        handler,
         'localhost',
         port,
       );
@@ -150,25 +155,112 @@ class _FireworksPageState extends State<FireworksPage> {
       debugPrint('Local server started at $_localServerUrl');
 
       // 等待一小段时间确保服务器完全启动
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 1000));
 
-      // 尝试打开浏览器
-      await _openInBrowser();
+      // 验证服务器是否正常工作
+      final isValid = await _validateServer();
+      if (isValid) {
+        // 尝试打开浏览器
+        await _openInBrowser();
+      } else {
+        debugPrint('Server validation failed');
+        _showErrorDialog('本地服务器启动失败', '无法验证服务器是否正常工作，请重试。');
+      }
     } catch (e) {
       debugPrint('Failed to start local server: $e');
+      _showErrorDialog('本地服务器启动失败', '错误信息: $e');
+    }
+  }
+
+  // 验证服务器是否正常工作
+  Future<bool> _validateServer() async {
+    try {
+      if (_localServerUrl == null) return false;
+
+      final uri = Uri.parse('$_localServerUrl/');
+      final request = await HttpClient().getUrl(uri);
+      final response = await request.close();
+
+      // 检查响应状态码
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Server validation error: $e');
+      return false;
+    }
+  }
+
+  // 显示错误对话框
+  void _showErrorDialog(String title, String message) {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('确定'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _startLocalServer(); // 重试启动
+                },
+                child: const Text('重试'),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 
   // 创建HTTP请求处理器
   Handler _createHandler() {
-    // 根据平台选择web资源目录
-    final webAssetsDir = (_isWindows || _isLinux) ? 'assets/web-desktop' : 'assets/web';
+    // 尝试多个可能的web资源目录路径
+    List<String> possiblePaths = [];
+    if (_isWindows || _isLinux) {
+      possiblePaths.addAll([
+        'assets/web-desktop',
+        'assets/web',
+        'data/flutter_assets/assets/web-desktop',
+        'data/flutter_assets/assets/web',
+      ]);
+    } else {
+      possiblePaths.addAll([
+        'assets/web',
+        'data/flutter_assets/assets/web',
+      ]);
+    }
 
-    // 创建静态文件处理器
-    final staticHandler = createStaticHandler(webAssetsDir,
-      defaultDocument: 'index.html',
-      listDirectories: false,
-    );
+    // 创建静态文件处理器，如果找不到文件则返回错误页面
+    late Handler staticHandler;
+    bool foundValidPath = false;
+
+    for (String path in possiblePaths) {
+      try {
+        final testHandler = createStaticHandler(path,
+          defaultDocument: 'index.html',
+          listDirectories: false,
+        );
+        staticHandler = testHandler;
+        foundValidPath = true;
+        debugPrint('Using web assets path: $path');
+        break;
+      } catch (e) {
+        debugPrint('Failed to use path $path: $e');
+        continue;
+      }
+    }
+
+    // 如果没有找到有效路径，创建一个错误处理器
+    if (!foundValidPath) {
+      staticHandler = (Request request) async {
+        return Response.notFound('Web assets not found. Please check app installation.');
+      };
+    }
 
     // 创建自定义处理器来处理CORS和音频文件
     return (Request request) async {
@@ -177,17 +269,22 @@ class _FireworksPageState extends State<FireworksPage> {
         return _createAudioFilesResponse();
       }
 
-      // 添加CORS头到所有响应
-      final response = await staticHandler(request);
+      try {
+        // 添加CORS头到所有响应
+        final response = await staticHandler(request);
 
-      return response.change(
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          ...response.headers,
-        },
-      );
+        return response.change(
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            ...response.headers,
+          },
+        );
+      } catch (e) {
+        debugPrint('Error serving static file: $e');
+        return Response.internalServerError(body: 'Error loading resources: $e');
+      }
     };
   }
 
@@ -419,14 +516,62 @@ class _FireworksPageState extends State<FireworksPage> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              _localServerUrl!,
-                              style: const TextStyle(
-                                color: Colors.cyan,
-                                fontSize: 12,
-                                decoration: TextDecoration.none,
-                                fontFamily: 'monospace',
-                              ),
+                            Column(
+                              children: [
+                                Text(
+                                  _localServerUrl!,
+                                  style: const TextStyle(
+                                    color: Colors.cyan,
+                                    fontSize: 12,
+                                    decoration: TextDecoration.none,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // 点击查看按钮
+                                Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.cyan.withValues(alpha: 0.3),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isOpeningBrowser ? null : _openInBrowser,
+                                    icon: _isOpeningBrowser
+                                        ? const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 1.5,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(Icons.visibility, size: 16),
+                                    label: Text(
+                                      _isOpeningBrowser ? '正在打开...' : '点击查看',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.cyan.withValues(alpha: 0.8),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      elevation: 0,
+                                      minimumSize: const Size(100, 32),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -507,8 +652,8 @@ class _FireworksPageState extends State<FireworksPage> {
                       const SizedBox(height: 30),
                       Text(
                         '正在启动本地服务器...',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 14,
                           decoration: TextDecoration.none,
                         ),
@@ -516,8 +661,8 @@ class _FireworksPageState extends State<FireworksPage> {
                       const SizedBox(height: 10),
                       Text(
                         '浏览器将自动打开',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 12,
                           decoration: TextDecoration.none,
                         ),
@@ -527,8 +672,8 @@ class _FireworksPageState extends State<FireworksPage> {
                       const SizedBox(height: 30),
                       Text(
                         '按 ESC 键返回',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 14,
                           decoration: TextDecoration.none,
                         ),
