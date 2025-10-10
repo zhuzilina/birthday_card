@@ -17,14 +17,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
-import 'dart:convert' as convert;
-import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:shelf/shelf.dart';
-import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:shelf_static/shelf_static.dart';
+import 'web_service.dart';
 
 // 条件导入WebView实现
 import 'package:webview_flutter/webview_flutter.dart';
@@ -46,8 +42,7 @@ class _FireworksPageState extends State<FireworksPage> {
   final bool _isWindows = !kIsWeb && Platform.isWindows;
   final bool _isLinux = !kIsWeb && Platform.isLinux;
   bool _webViewSupported = true;
-  HttpServer? _localServer;
-  String? _localServerUrl;
+  WebService? _webService;
   bool _isOpeningBrowser = false;
 
   @override
@@ -58,9 +53,9 @@ class _FireworksPageState extends State<FireworksPage> {
       _setupKeyboardListener();
     }
 
-    // Linux和Windows平台直接启动本地服务器
+    // Linux和Windows平台直接启动Web服务
     if (_isLinux || _isWindows) {
-      _startLocalServer();
+      _startWebService();
       setState(() {
         _webViewSupported = false;
       });
@@ -126,9 +121,9 @@ class _FireworksPageState extends State<FireworksPage> {
     } catch (e) {
       debugPrint('WebView initialization failed: $e');
 
-      // Windows或Linux平台WebView失败时，尝试启动本地服务器
+      // Windows或Linux平台WebView失败时，尝试启动Web服务
       if (_isWindows || _isLinux) {
-        await _startLocalServer();
+        await _startWebService();
       }
 
       setState(() {
@@ -137,55 +132,25 @@ class _FireworksPageState extends State<FireworksPage> {
     }
   }
 
-  // 启动本地HTTP服务器
-  Future<void> _startLocalServer() async {
+  // 启动Web服务
+  Future<void> _startWebService() async {
     try {
       const port = 8080;
+      final assetsPath = _isWindows || _isLinux ? 'assets/web-desktop' : 'assets/web';
 
-      // 先尝试创建处理器来验证资源路径
-      final handler = _createHandler();
+      _webService = WebService(port: port, assetsPath: assetsPath);
+      await _webService!.start();
 
-      _localServer = await shelf_io.serve(
-        handler,
-        'localhost',
-        port,
-      );
-
-      _localServerUrl = 'http://localhost:$port';
-      debugPrint('Local server started at $_localServerUrl');
+      debugPrint('Web服务已启动: ${_webService!.url}');
 
       // 等待一小段时间确保服务器完全启动
       await Future.delayed(const Duration(milliseconds: 1000));
 
-      // 验证服务器是否正常工作
-      final isValid = await _validateServer();
-      if (isValid) {
-        // 尝试打开浏览器
-        await _openInBrowser();
-      } else {
-        debugPrint('Server validation failed');
-        _showErrorDialog('本地服务器启动失败', '无法验证服务器是否正常工作，请重试。');
-      }
+      // 尝试打开浏览器
+      await _openInBrowser();
     } catch (e) {
-      debugPrint('Failed to start local server: $e');
-      _showErrorDialog('本地服务器启动失败', '错误信息: $e');
-    }
-  }
-
-  // 验证服务器是否正常工作
-  Future<bool> _validateServer() async {
-    try {
-      if (_localServerUrl == null) return false;
-
-      final uri = Uri.parse('$_localServerUrl/');
-      final request = await HttpClient().getUrl(uri);
-      final response = await request.close();
-
-      // 检查响应状态码
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('Server validation error: $e');
-      return false;
+      debugPrint('Failed to start web service: $e');
+      _showErrorDialog('Web服务启动失败', '错误信息: $e');
     }
   }
 
@@ -206,7 +171,7 @@ class _FireworksPageState extends State<FireworksPage> {
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  _startLocalServer(); // 重试启动
+                  _startWebService(); // 重试启动
                 },
                 child: const Text('重试'),
               ),
@@ -217,108 +182,9 @@ class _FireworksPageState extends State<FireworksPage> {
     }
   }
 
-  // 创建HTTP请求处理器
-  Handler _createHandler() {
-    // 尝试多个可能的web资源目录路径
-    List<String> possiblePaths = [];
-    if (_isWindows || _isLinux) {
-      possiblePaths.addAll([
-        'assets/web-desktop',
-        'assets/web',
-        'data/flutter_assets/assets/web-desktop',
-        'data/flutter_assets/assets/web',
-      ]);
-    } else {
-      possiblePaths.addAll([
-        'assets/web',
-        'data/flutter_assets/assets/web',
-      ]);
-    }
-
-    // 创建静态文件处理器，如果找不到文件则返回错误页面
-    late Handler staticHandler;
-    bool foundValidPath = false;
-
-    for (String path in possiblePaths) {
-      try {
-        final testHandler = createStaticHandler(path,
-          defaultDocument: 'index.html',
-          listDirectories: false,
-        );
-        staticHandler = testHandler;
-        foundValidPath = true;
-        debugPrint('Using web assets path: $path');
-        break;
-      } catch (e) {
-        debugPrint('Failed to use path $path: $e');
-        continue;
-      }
-    }
-
-    // 如果没有找到有效路径，创建一个错误处理器
-    if (!foundValidPath) {
-      staticHandler = (Request request) async {
-        return Response.notFound('Web assets not found. Please check app installation.');
-      };
-    }
-
-    // 创建自定义处理器来处理CORS和音频文件
-    return (Request request) async {
-      // 处理音频文件信息API端点
-      if (request.url.path == '/api/audio-files') {
-        return _createAudioFilesResponse();
-      }
-
-      try {
-        // 添加CORS头到所有响应
-        final response = await staticHandler(request);
-
-        return response.change(
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            ...response.headers,
-          },
-        );
-      } catch (e) {
-        debugPrint('Error serving static file: $e');
-        return Response.internalServerError(body: 'Error loading resources: $e');
-      }
-    };
-  }
-
-  // 创建音频文件列表响应
-  Response _createAudioFilesResponse() {
-    final audioFiles = [
-      'burst1.mp3',
-      'burst2.mp3',
-      'burst-sm-1.mp3',
-      'burst-sm-2.mp3',
-      'crackle1.mp3',
-      'crackle-sm-1.mp3',
-      'lift1.mp3',
-      'lift2.mp3',
-      'lift3.mp3',
-    ];
-
-    final audioData = <String, String>{};
-    for (String fileName in audioFiles) {
-      audioData[fileName] = '/audio/$fileName';
-    }
-
-    return Response.ok(
-      convert.jsonEncode(audioData),
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    );
-  }
-
-  // 在浏览器中打开本地服务器URL
+  // 在浏览器中打开Web服务URL
   Future<void> _openInBrowser() async {
-    if (_localServerUrl == null || _isOpeningBrowser) return;
+    if (_webService == null || _isOpeningBrowser) return;
 
     setState(() {
       _isOpeningBrowser = true;
@@ -326,17 +192,21 @@ class _FireworksPageState extends State<FireworksPage> {
 
     try {
       // 添加桌面模式和全屏参数到 URL
-      final uri = Uri.parse('${_localServerUrl!}?desktop=true&fullscreen=true');
+      final uri = Uri.parse('${_webService!.url}?desktop=true&fullscreen=true');
       if (await canLaunchUrl(uri)) {
         await launchUrl(
           uri,
           mode: LaunchMode.externalApplication, // 使用外部浏览器
         );
       } else {
-        debugPrint('Could not launch $_localServerUrl');
+        debugPrint('Could not launch ${_webService!.url}');
       }
     } catch (e) {
       debugPrint('Error launching browser: $e');
+    } finally {
+      setState(() {
+        _isOpeningBrowser = false;
+      });
     }
   }
 
@@ -393,9 +263,9 @@ class _FireworksPageState extends State<FireworksPage> {
       HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     }
 
-    // 关闭本地服务器
-    _localServer?.close();
-    _localServer = null;
+    // 关闭Web服务
+    _webService?.stop();
+    _webService = null;
 
     super.dispose();
   }
@@ -436,8 +306,6 @@ class _FireworksPageState extends State<FireworksPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isLandscape = screenSize.width > screenSize.height;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -485,7 +353,7 @@ class _FireworksPageState extends State<FireworksPage> {
                         decoration: TextDecoration.none,
                       ),
                     ),
-                    if (_localServerUrl != null) ...[
+                    if (_webService != null) ...[
                       const SizedBox(height: 20),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -506,7 +374,7 @@ class _FireworksPageState extends State<FireworksPage> {
                                 ),
                                 const SizedBox(width: 8),
                                 const Text(
-                                  '本地服务器已启动',
+                                  'Web服务已启动',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -519,7 +387,7 @@ class _FireworksPageState extends State<FireworksPage> {
                             Column(
                               children: [
                                 Text(
-                                  _localServerUrl!,
+                                  _webService!.url,
                                   style: const TextStyle(
                                     color: Colors.cyan,
                                     fontSize: 12,
@@ -577,7 +445,7 @@ class _FireworksPageState extends State<FireworksPage> {
                         ),
                       ),
                     ],
-                    if (_localServerUrl != null) ...[
+                    if (_webService != null) ...[
                       const SizedBox(height: 30),
                       // 点击查看烟花按钮
                       Container(
@@ -651,7 +519,7 @@ class _FireworksPageState extends State<FireworksPage> {
                     ] else if (_isWindows || _isLinux) ...[
                       const SizedBox(height: 30),
                       Text(
-                        '正在启动本地服务器...',
+                        '正在启动Web服务...',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,

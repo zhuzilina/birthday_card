@@ -9,13 +9,13 @@
 		<meta name="theme-color" content="#000000" />
 		<meta name="description" content="沉浸式烟花模拟体验 - 在浏览器中欣赏绚丽烟花" />
 		<meta name="keywords" content="烟花,模拟器,看烟花,全屏,沉浸式" />
-		<link rel="shortcut icon" type="image/png" href="./images/favicon.png" />
-		<link rel="icon" type="image/png" href="./images/favicon.png" />
-		<link rel="apple-touch-icon-precomposed" href="./images/favicon.png" />
+		<link rel="shortcut icon" type="image/png" href="images/favicon.png" />
+		<link rel="icon" type="image/png" href="images/favicon.png" />
+		<link rel="apple-touch-icon-precomposed" href="images/favicon.png" />
 		<meta name="msapplication-TileColor" content="#000000" />
-		<meta name="msapplication-TileImage" content="./images/favicon.png" />
-		<link href="./fonts/css.css" rel="stylesheet" />
-		<link rel="stylesheet" href="./css/style.css" />
+		<meta name="msapplication-TileImage" content="images/favicon.png" />
+		<link href="fonts/css.css" rel="stylesheet" />
+		<link rel="stylesheet" href="css/style.css" />
 	</head>
 	<body>
 		<!-- partial:index.partial.html -->
@@ -53,7 +53,10 @@
 					<canvas id="trails-canvas"> </canvas>
 					<canvas id="main-canvas"> </canvas>
 				</div>
-					<div class="menu hide">
+				<div class="controls">
+					<!-- 控制按钮区域 -->
+				</div>
+				<div class="menu hide">
 					<div class="menu__inner-wrap">
 						<div class="btn btn--bright close-menu-btn">
 							<svg fill="white" width="24" height="24">
@@ -131,6 +134,18 @@
 
 		<!-- partial -->
 		<script>
+			// API 基础配置
+			function getApiUrl(relativePath) {
+				// 检测是否在本地服务器环境
+				if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+					const baseUrl = window.location.origin;
+					return `${baseUrl}/api/resource/${relativePath}`;
+				} else {
+					// 回退到原始路径
+					return `./${relativePath}`;
+				}
+			}
+
 			// 桌面版本音频和环境检测
 			if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
 				console.log('HTTP(S) environment detected, enabling browser mode');
@@ -141,20 +156,20 @@
 				window.useDirectAudioPaths = true;
 				window.BROWSER_MODE = true;
 
-				// 创建音频数据存储，使用直接路径
+				// 创建音频数据存储，使用 API 路径
 				window.audioData = {
 					// Lift sounds
-					'lift1.mp3': './audio/lift1.mp3',
-					'lift2.mp3': './audio/lift2.mp3',
-					'lift3.mp3': './audio/lift3.mp3',
+					'lift1.mp3': getApiUrl('audio/lift1.mp3'),
+					'lift2.mp3': getApiUrl('audio/lift2.mp3'),
+					'lift3.mp3': getApiUrl('audio/lift3.mp3'),
 					// Burst sounds
-					'burst1.mp3': './audio/burst1.mp3',
-					'burst2.mp3': './audio/burst2.mp3',
-					'burst-sm-1.mp3': './audio/burst-sm-1.mp3',
-					'burst-sm-2.mp3': './audio/burst-sm-2.mp3',
+					'burst1.mp3': getApiUrl('audio/burst1.mp3'),
+					'burst2.mp3': getApiUrl('audio/burst2.mp3'),
+					'burst-sm-1.mp3': getApiUrl('audio/burst-sm-1.mp3'),
+					'burst-sm-2.mp3': getApiUrl('audio/burst-sm-2.mp3'),
 					// Crackle sounds
-					'crackle1.mp3': './audio/crackle1.mp3',
-					'crackle-sm-1.mp3': './audio/crackle-sm-1.mp3'
+					'crackle1.mp3': getApiUrl('audio/crackle1.mp3'),
+					'crackle-sm-1.mp3': getApiUrl('audio/crackle-sm-1.mp3')
 				};
 
 				// 防止音频相关错误，但允许正常音频加载
@@ -172,11 +187,11 @@
 				window.audioData = window.audioData || {};
 			}
 		</script>
-		<script src="./js/fscreen.js"></script>
-		<script src="./js/Stage.js"></script>
-		<script src="./js/MyMath.js"></script>
-		<script src="./js/script.js"></script>
-		<script src="./js/desktop-fix.js"></script>
+		<script src="js/fscreen.js"></script>
+		<script src="js/Stage.js"></script>
+		<script src="js/MyMath.js"></script>
+		<script src="js/script.js"></script>
+		<script src="js/desktop-fix.js"></script>
 
 		<!-- 桌面版本专用全屏功能 -->
 		<script>
