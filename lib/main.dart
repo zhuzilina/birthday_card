@@ -641,35 +641,68 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkFirstLaunch() async {
-    bool isFirstLaunch = true; // 默认为首次启动
+    bool isFirstLaunch = true; // 强制默认为首次启动
+    bool hasLaunchedBefore = false;
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
+    developer.log('🚀 开始检查首次启动状态（强制显示逻辑）...');
 
-      // 尝试获取首次启动标志
-      final savedFlag = prefs.getBool('isFirstLaunch');
-      if (savedFlag != null) {
-        isFirstLaunch = savedFlag;
+    // 在桌面环境中，使用文件系统检查是否是首次启动
+    if (io.Platform.isWindows || io.Platform.isLinux) {
+      try {
+        final appDir = io.Directory.current;
+        final markerFile = io.File('${appDir.path}/.launched_before');
+
+        hasLaunchedBefore = await markerFile.exists();
+        developer.log('📁 桌面环境 - 检查启动标记文件: $hasLaunchedBefore');
+
+        if (!hasLaunchedBefore) {
+          // 创建标记文件表示已启动过
+          await markerFile.writeAsString('launched');
+          developer.log('✅ 创建启动标记文件');
+        }
+      } catch (e) {
+        developer.log('❌ 创建标记文件失败: $e');
       }
+    } else {
+      // 移动设备和Web使用SharedPreferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        hasLaunchedBefore = prefs.getBool('hasLaunchedBefore') ?? false;
+        developer.log('📱 移动环境 - SharedPreferences状态: $hasLaunchedBefore');
 
-      // 如果成功获取了标志，设置非首次启动
-      if (isFirstLaunch) {
-        await prefs.setBool('isFirstLaunch', false);
+        if (!hasLaunchedBefore) {
+          await prefs.setBool('hasLaunchedBefore', true);
+          developer.log('✅ 设置SharedPreferences标志');
+        }
+      } catch (e) {
+        developer.log('❌ SharedPreferences访问出错: $e');
       }
-    } catch (e) {
-      developer.log('SharedPreferences访问出错，使用默认值: $e');
-      // 出错时保持isFirstLaunch为true，确保显示欢迎页面
     }
 
     // 等待一秒钟，让用户看到启动画面
     await Future.delayed(const Duration(milliseconds: 1000));
 
+    // 桌面端总是显示欢迎页面（测试）
+    if (io.Platform.isWindows || io.Platform.isLinux) {
+      isFirstLaunch = true;
+      developer.log('🖥️ 桌面端 - 强制显示欢迎页面');
+    } else {
+      isFirstLaunch = !hasLaunchedBefore;
+      developer.log('📱 移动端 - 首次启动=$isFirstLaunch');
+    }
+
+    developer.log('🎯 最终决定 - isFirstLaunch=$isFirstLaunch, mounted=$mounted');
+
     if (mounted) {
       if (isFirstLaunch) {
+        developer.log('🎉 导航到欢迎页面');
         Navigator.pushReplacementNamed(context, '/welcome');
       } else {
+        developer.log('🏠 导航到主页');
         Navigator.pushReplacementNamed(context, '/');
       }
+    } else {
+      developer.log('❌ 组件已销毁，无法导航');
     }
   }
 
