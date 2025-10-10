@@ -75,7 +75,12 @@ flutter:
     - assets/web/fonts/
     - assets/web/images/
     - assets/web/audio/
-    - assets/web-desktop/
+    - assets/web-desktop/index.html
+    - assets/web-desktop/js/
+    - assets/web-desktop/css/
+    - assets/web-desktop/fonts/
+    - assets/web-desktop/images/
+    - assets/web-desktop/audio/
     - assets/images/
     - assets/txt/
 
